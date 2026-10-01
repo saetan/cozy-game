@@ -1,4 +1,5 @@
 // Game entry: wires the sim (src/game.ts) to the renderer, placement UI and HUD.
+import * as THREE from 'three';
 import { createScene } from './render/scene';
 import { createChunkView } from './render/chunkView';
 import { setHousePose, stepTweens } from './render/houseView';
@@ -7,6 +8,8 @@ import { createSimView } from './render/simView';
 import { createPlacementMode } from './ui/placementMode';
 import { createGame, footprintOf, SPEEDS } from './game';
 import { dayOf, timeOfDay } from './sim/clock';
+import { CELL } from './kit/index.js';
+import { advance } from './sim/sim';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const { scene, camera, onFrame } = createScene(canvas);
@@ -46,3 +49,20 @@ onFrame(t => {
   stepTweens(t);
   updateHud();
 });
+
+// Test hooks: only in dev and `vite build --mode e2e`. Vite folds this condition to false in a
+// normal production build, so the block (and the hook names) are dropped from dist/.
+if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
+  const w = window as unknown as Record<string, unknown>;
+  w.__game = game;
+  w.__e2e = {
+    /** Sim-only fast-forward (no rendering), for tests that must not depend on rAF pacing. */
+    advance: (simSeconds: number) => advance(sim, simSeconds),
+    /** Projects a cell centre to page CSS pixels. */
+    cellToScreen(x: number, z: number) {
+      const v = new THREE.Vector3((x + 0.5) * CELL, 0, (z + 0.5) * CELL).project(camera);
+      const r = canvas.getBoundingClientRect();
+      return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+    },
+  };
+}
