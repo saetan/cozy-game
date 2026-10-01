@@ -96,6 +96,6 @@ test('?demo: two in-game days earn coins', async ({ page }, testInfo) => {
   expect(sim.coins).toBeGreaterThan(0);
   expect(sim.delivered).toBeGreaterThan(0);
   await expect(page.locator('#coins')).not.toHaveText('0');
-  const shot = await page.screenshot({ path: 'docs/screenshots/e2e-demo.png' });
+  const shot = await page.screenshot({ path: testInfo.outputPath('demo-after-2-days.png') });
   await testInfo.attach('demo-after-2-days', { body: shot, contentType: 'image/png' });
 });
