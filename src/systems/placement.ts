@@ -22,10 +22,9 @@ export function canPlace(w: World, fp: Footprint, r: number, ox: number, oz: num
   return worldCells(fp, r, ox, oz).every(([x, z]) => isUnlocked(w, x, z) && isFree(w, x, z));
 }
 
-let nextId = 1;
 export function place(w: World, fp: Footprint, r: Rotation, ox: number, oz: number): Placement | null {
   if (!canPlace(w, fp, r, ox, oz)) return null;
-  const id = nextId++;
+  const id = w.nextId++;
   for (const [x, z] of worldCells(fp, r, ox, oz)) occupy(w, x, z, id);
   return { id, origin: [ox, oz], rotation: r, footprint: fp };
 }

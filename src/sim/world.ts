@@ -9,6 +9,7 @@ export interface World {
   config: WorldConfig;
   unlocked: Set<string>;
   occupied: Map<string, number>; // cell key -> occupant id
+  nextId: number; // next placement id; lives on the world so it is saved with it
 }
 
 export const cellKey = (x: number, z: number) => `${x},${z}`;
@@ -21,7 +22,7 @@ export function createWorld(config: WorldConfig = worldConfig): World {
   const unlocked = new Set<string>();
   const r = config.startUnlockedRadius;
   for (let cx = -r; cx <= r; cx++) for (let cz = -r; cz <= r; cz++) unlocked.add(chunkKey(cx, cz));
-  return { config, unlocked, occupied: new Map() };
+  return { config, unlocked, occupied: new Map(), nextId: 1 };
 }
 
 export function inBounds(w: World, x: number, z: number): boolean {
