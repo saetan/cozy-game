@@ -11,12 +11,22 @@ describe('game wiring', () => {
     expect(market(g.sim)).toBeTruthy();
     expect(g.sim.residents.size).toBe(0);
   });
-  it('first house adds exactly one resident; second does not', () => {
+  it('starts with coins for 1 house + 2 farm plots (the market is free)', () => {
     const g = createGame();
+    expect(g.sim.coins).toBe(80);
+    expect(g.placeBuilding('house', 0, [-8, 0]).ok).toBe(true);
+    expect(g.placeBuilding('farmPlot', 0, [0, 4]).ok).toBe(true);
+    expect(g.placeBuilding('farmPlot', 0, [2, 4]).ok).toBe(true);
+    expect(g.sim.coins).toBe(0);
+    expect(g.placeBuilding('farmPlot', 0, [4, 4])).toEqual({ ok: false, reason: 'not enough coins' });
+  });
+  it('every house brings a resident when placed', () => {
+    const g = createGame();
+    g.sim.coins = 200;
     expect(g.placeBuilding('house', 0, [-8, 0]).ok).toBe(true);
     expect(g.sim.residents.size).toBe(1);
-    expect(g.placeBuilding('house', 0, [-8, 4]).ok).toBe(true);
-    expect(g.sim.residents.size).toBe(1);
+    expect(g.placeBuilding('house', 0, [-8, 8]).ok).toBe(true);
+    expect(g.sim.residents.size).toBe(2);
   });
   it('fails when blocked', () => {
     const g = createGame();

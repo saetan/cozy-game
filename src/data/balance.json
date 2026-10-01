@@ -8,14 +8,155 @@
   "specialistMultiplier": 1.5,
   "maxCrates": 3,
   "waterFraction": 0.5,
-  "times": { "plant": 4, "water": 3, "harvest": 5, "pickup": 2, "drop": 2, "sell": 3 },
-  "crops": { "carrot": { "growTime": 400, "price": 10 } },
+  "times": {
+    "plant": 4,
+    "water": 3,
+    "harvest": 5,
+    "pickup": 2,
+    "drop": 2,
+    "sell": 3
+  },
+  "crops": {
+    "carrot": {
+      "growTime": 400,
+      "price": 10
+    }
+  },
   "defaultCrop": "carrot",
   "footprints": {
-    "house": [[0, 0], [1, 0], [0, 1], [1, 1]],
-    "farmPlot": [[0, 0]],
-    "market": [[0, 0], [1, 0], [0, 1], [1, 1]]
+    "farmPlot": [
+      [
+        0,
+        0
+      ]
+    ],
+    "market": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ]
   },
-  "species": ["cat", "fox", "bear", "bunny", "frog"],
-  "names": ["Mochi", "Pip", "Juniper", "Biscuit", "Clover", "Maple", "Tansy", "Nutmeg", "Willow", "Poppy"]
+  "species": [
+    "cat",
+    "fox",
+    "bear",
+    "bunny",
+    "frog"
+  ],
+  "names": [
+    "Mochi",
+    "Pip",
+    "Juniper",
+    "Biscuit",
+    "Clover",
+    "Maple",
+    "Tansy",
+    "Nutmeg",
+    "Willow",
+    "Poppy",
+    "Basil",
+    "Hazel",
+    "Sage",
+    "Peony",
+    "Pebble",
+    "Acorn",
+    "Daisy",
+    "Fern",
+    "Moss",
+    "Thistle",
+    "Wren",
+    "Marigold",
+    "Sorrel",
+    "Bramble",
+    "Teasel",
+    "Cosmo",
+    "Olive",
+    "Ziggy",
+    "Truffle",
+    "Lark"
+  ],
+  "startingCoins": 80,
+  "costs": {
+    "house": {
+      "coins": 50
+    },
+    "farmPlot": {
+      "coins": 15
+    },
+    "market": {
+      "coins": 0
+    },
+    "path": {
+      "coins": 1
+    },
+    "road": {
+      "coins": 2
+    }
+  },
+  "houseLevelCosts": [
+    {
+      "coins": 70
+    },
+    {
+      "coins": 112
+    },
+    {
+      "coins": 179
+    },
+    {
+      "coins": 287
+    },
+    {
+      "coins": 459
+    },
+    {
+      "coins": 734
+    }
+  ],
+  "arrivalLevels": [
+    1,
+    3,
+    6
+  ],
+  "traits": {
+    "greenThumb": {
+      "name": "Green Thumb",
+      "desc": "crops grow faster",
+      "speed": {
+        "plant": 1.15,
+        "water": 1.15,
+        "harvest": 1.15
+      }
+    },
+    "sturdy": {
+      "name": "Sturdy",
+      "desc": "carries 2 crates at a time",
+      "carry": 2
+    },
+    "chatty": {
+      "name": "Chatty",
+      "desc": "sells faster",
+      "speed": {
+        "sell": 1.3
+      }
+    },
+    "sleepy": {
+      "name": "Sleepy",
+      "desc": "starts work a little late",
+      "workStartDelay": 0.05
+    }
+  }
 }

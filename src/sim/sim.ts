@@ -7,6 +7,7 @@ import { DAY_LENGTH } from './clock';
 import type { WorldConfig } from './world';
 
 export { apply } from './commands';
+export { levelUpCheck } from './houses';
 export type { Command, CommandResult } from './commands';
 export type { SimState } from './state';
 
@@ -36,7 +37,8 @@ export function snapshot(sim: SimState) {
       nextId: sim.world.nextId, unlocked: [...sim.world.unlocked].sort(),
       occupied: sortBy([...sim.world.occupied.entries()], e => e[0]),
     },
-    paths: [...sim.paths].sort(),
+    tiles: [...sim.tiles.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)),
+    log: sim.log,
     buildings: [...sim.buildings.values()],
     residents: [...sim.residents.values()],
     jobs: [...sim.jobs.values()],

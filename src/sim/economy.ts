@@ -4,7 +4,8 @@ import { accessCell, findPath, travelTime } from '../systems/pathfinding';
 import { isWorkHours, nextWorkEnd, nextWorkStart } from './clock';
 import { pushEvent, type SimEvent } from './events';
 import { claimJob, completeJob, market, pickJob, ROLE_OF, syncMarket, syncPlot } from './jobs';
-import type { Cell, Job, Resident, SimState, Task } from './state';
+import { carryCapacity, traitSpeed, workDelay } from './traits';
+import type { Building, Cell, Job, Resident, SimState, Task } from './state';
 
 type Op = { at: 'plot' | 'market'; action: Task['action']; time: keyof typeof balance.times; effect: string };
 const PLANS: Record<Job['kind'], Op[]> = {
@@ -26,7 +27,7 @@ function stand(sim: SimState, r: Resident, kind: Task['kind'], until: number): v
 /** Begin walking to a cell; false if unreachable, 'here' if already there. */
 function walk(sim: SimState, r: Resident, to: Cell, kind: Task['kind'], action: Task['action']): boolean | 'here' {
   if (r.cell[0] === to[0] && r.cell[1] === to[1]) return 'here';
-  const p = findPath(sim.world, sim.paths, r.cell, to);
+  const p = findPath(sim.world, sim.tiles, r.cell, to);
   if (!p) return false;
   startTask(sim, r, { kind, action, path: p.cells, cum: p.cum, start: sim.t, end: sim.t + travelTime(p.cost) });
   return true;
@@ -38,15 +39,16 @@ const homeAccess = (sim: SimState, r: Resident): Cell | null => {
 
 /** Decide what a resident does next (called whenever they are free). */
 export function step(sim: SimState, r: Resident): void {
-  if (r.jobId === null && isWorkHours(sim.t)) {
+  const delay = workDelay(r);
+  if (r.jobId === null && isWorkHours(sim.t, delay)) {
     const job = pickJob(sim, r);
     if (job) claimJob(sim, job, r);
   }
   if (r.jobId !== null) { runJob(sim, r); return; }
-  if (isWorkHours(sim.t)) { stand(sim, r, 'idle', nextWorkEnd(sim.t)); return; }
+  if (isWorkHours(sim.t, delay)) { stand(sim, r, 'idle', nextWorkEnd(sim.t)); return; }
   const home = homeAccess(sim, r);
   if (home && walk(sim, r, home, 'home', 'walk') === true) return;
-  stand(sim, r, 'idle', nextWorkStart(sim.t));
+  stand(sim, r, 'idle', nextWorkStart(sim.t, delay));
 }
 
 function runJob(sim: SimState, r: Resident): void {
@@ -62,8 +64,9 @@ function runJob(sim: SimState, r: Resident): void {
     if (w === false) { abort(sim, r, job); return; }
     // selling is open-ended, so it stops at work end instead of running all night
     if (op.effect === 'sell' && ((b!.stock ?? 0) <= 0 || !isWorkHours(sim.t))) { r.stage = plan.length; continue; }
-    const spec = r.role === ROLE_OF[job.kind] ? balance.specialistMultiplier : 1;
-    startTask(sim, r, { kind: 'job', action: op.action, start: sim.t, end: sim.t + balance.times[op.time] / spec });
+    // specialist bonus and trait speed-ups stack multiplicatively
+    const speed = (r.role === ROLE_OF[job.kind] ? balance.specialistMultiplier : 1) * traitSpeed(r, op.time);
+    startTask(sim, r, { kind: 'job', action: op.action, start: sim.t, end: sim.t + balance.times[op.time] / speed });
     return;
   }
 }
@@ -95,14 +98,27 @@ function applyEffect(sim: SimState, r: Resident, job: Job, effect: string): void
       pushEvent(sim.queue, sim.t + crop.growTime * (1 - balance.waterFraction), { kind: 'plot', plotId: plot!.id, stage: 'ripe' });
       break;
     case 'harvest': plot!.plotState = 'empty'; plot!.crates = (plot!.crates ?? 0) + 1; sim.stats.harvested++; break;
-    case 'pickup': plot!.crates = (plot!.crates ?? 0) - 1; job.pickedUp = true; r.carrying = 1; break;
-    case 'drop': { const m = market(sim)!; m.stock = (m.stock ?? 0) + 1; r.carrying = 0; sim.stats.delivered++; break; }
+    case 'pickup': {
+      const n = 1 + pickupExtra(sim, plot!, job, carryCapacity(r) - 1);
+      plot!.crates = (plot!.crates ?? 0) - n; job.pickedUp = true; r.carrying = n; break;
+    }
+    case 'drop': { const m = market(sim)!; m.stock = (m.stock ?? 0) + r.carrying; sim.stats.delivered += r.carrying; r.carrying = 0; break; }
     case 'sell': {
       const m = market(sim)!; m.stock = (m.stock ?? 0) - 1;
       const price = balance.crops[balance.defaultCrop as 'carrot'].price;
       sim.coins += price; sim.stats.sold++; sim.stats.earned += price; break;
     }
   }
+}
+
+/** Extra crates a Sturdy hauler can take from the same plot: only crates no other hauler has claimed.
+ *  The matching unclaimed haul jobs are consumed so job count keeps equalling crate count. */
+function pickupExtra(sim: SimState, plot: Building, own: Job, room: number): number {
+  const hauls = [...sim.jobs.values()].filter(j => j.kind === 'haul' && j.targetId === plot.id && !j.pickedUp && j.id !== own.id);
+  const spare = hauls.filter(j => j.claimedBy === null).sort((a, b) => a.id - b.id);
+  const extra = Math.min(spare.length, (plot.crates ?? 0) - 1 - (hauls.length - spare.length), room);
+  for (let i = 0; i < extra; i++) sim.jobs.delete(spare[i].id);
+  return Math.max(0, extra);
 }
 
 function onResidentEvent(sim: SimState, r: Resident): void {
