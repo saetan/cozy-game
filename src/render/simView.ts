@@ -27,7 +27,8 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
   function syncBuilding(b: Building, now: number) {
     let v = bviews.get(b.id);
     if (!v) {
-      const obj = createBuildingObject(b.type, undefined, true, now);
+      // farm plots get their stage mesh below; the generic object would add a second, fully grown plot
+      const obj = b.type === 'farmPlot' ? grp('farmPlot') : createBuildingObject(b.type, undefined, true, now);
       const p = b.placement;
       setHousePose(obj, p.footprint, p.rotation, p.origin[0], p.origin[1]);
       scene.add(obj);
@@ -73,6 +74,7 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
     const pos = residentPositionAt(r, t);
     if (!v) {
       const obj = resident(r.species as Species);
+      obj.traverse(o => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; });
       obj.position.set(pos.x, 0, pos.z);
       scene.add(obj);
       v = { obj, action: '', phase: r.id * 1.7, x: pos.x, z: pos.z, yaw: 0 };
