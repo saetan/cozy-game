@@ -2,7 +2,7 @@
 // (Lv1→7 via the HUD or ←/→ keys) with a walking resident, using the reference level-up animation.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import * as Kit from './kit/kit.js';
+import * as Kit from './kit/index.js';
 
 const { CELL, LEVELS, M, box, grp } = Kit;
 const LOT = { x0: -1, x1: 4, z0: -2, z1: 5 }, OX = -3, OZ = -3;
