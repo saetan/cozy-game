@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>House Kit — minimal integration example</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #f4f0ea; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #3a3632; }
+  a { color: #b86f63; } a:hover { color: #8f4f45; }
+  three-d-stage { display: block; width: 100vw; height: 100vh; }
+  #bar { position: fixed; top: 16px; left: 16px; display: flex; gap: 6px; z-index: 5; }
+  #bar button { font: inherit; font-size: 12px; padding: 7px 10px; border-radius: 6px; border: 1px solid rgba(58,54,50,0.2); background: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<three-d-stage name="house-kit-example" background="#f4f0ea"></three-d-stage>
+<div id="bar"><button id="b1">Random house</button><button id="b2">Level path (Lv 1–7)</button><button id="b3">Walking fox</button></div>
+<script src="three-d-stage.js"></script>
+<script type="module">
+// Minimal usage of kit.js — this is the shape your game's render loop will take.
+import * as THREE from 'three';
+import * as Kit from './kit.js';
+
+const stage = document.querySelector('three-d-stage');
+await stage.ready;
+
+function show(group) { stage.setObject(group); }
+
+function randomHouse() { Kit.clearActors(); show(Kit.house(Math.floor(Math.random() * 1e6))); }
+
+function levelRow() {
+  Kit.clearActors();
+  const g = new THREE.Group(); g.name = 'level_path';
+  Kit.LEVELS.forEach((spec, i) => {
+    const lot = new THREE.Group(); lot.name = 'level_' + (i + 1);
+    for (const p of Kit.buildPlan(spec)) {
+      const o = p.make(); o.position.set(p.x, p.y, p.z); o.rotation.y = p.ry; lot.add(o);
+    }
+    lot.position.x = i * 14; g.add(lot);
+  });
+  show(g);
+}
+
+function walker() {
+  Kit.clearActors();
+  const fox = Kit.setAction(Kit.resident('fox'), 'walk');
+  show(fox);
+}
+
+document.getElementById('b1').onclick = randomHouse;
+document.getElementById('b2').onclick = levelRow;
+document.getElementById('b3').onclick = walker;
+
+(function tick() {
+  const t = performance.now() / 1000;
+  for (const a of Kit.getActors()) Kit.animate(a, t + a.userData.phase);
+  requestAnimationFrame(tick);
+})();
+randomHouse();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f0ea; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #3a3632; }
+#game { display: block; width: 100vw; height: 100vh; }
+#hud { position: fixed; top: 16px; left: 16px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255, 253, 250, 0.92); border: 1px solid rgba(58, 54, 50, 0.12); border-radius: 10px; font-size: 13px; }
+#hud button { font: inherit; width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(58, 54, 50, 0.2); background: #fdfbf8; cursor: pointer; }
+#hud button:hover { background: #3a3632; color: #fdfbf8; }
+#level { min-width: 140px; text-align: center; }
