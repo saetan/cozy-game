@@ -19,3 +19,19 @@ export const cellToScreen = (page: Page, x: number, z: number) =>
 
 export const buildings = (page: Page) =>
   page.evaluate(() => [...(window as any).__game.sim.buildings.values()].map((b: any) => ({ type: b.type, placement: b.placement })));
+
+/** Cells occupied by a building (from the sim's world), as [x, z] pairs. */
+export const occupiedBy = (page: Page, id: number) =>
+  page.evaluate(bid => {
+    const g = (window as any).__game.sim as { world: { occupied: Map<string, number> }; buildings: Map<number, any> };
+    const pid = g.buildings.get(bid).placement.id;
+    return [...g.world.occupied].filter(([, v]) => v === pid).map(([k]) => k.split(',').map(Number) as [number, number]);
+  }, id);
+
+/** Mean cell index of a building's occupied cells. */
+export async function houseCentre(page: Page, id: number) {
+  const cells = await occupiedBy(page, id);
+  return [cells.reduce((a, c) => a + c[0], 0) / cells.length, cells.reduce((a, c) => a + c[1], 0) / cells.length] as [number, number];
+}
+export const simState = <T>(page: Page, fn: string): Promise<T> =>
+  page.evaluate(`(${fn})(window.__game.sim)`) as Promise<T>;
