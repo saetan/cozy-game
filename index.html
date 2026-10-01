@@ -9,7 +9,16 @@
 <body>
   <canvas id="game"></canvas>
   <div id="hud">
-    <button id="build" class="wide">Build House</button>
+    <div id="stats"><span title="Coins">&#9679; <b id="coins">0</b></span><span id="day">Day 1</span><span id="clock">06:00</span></div>
+    <div id="speed">
+      <button class="speed-btn" data-speed="1">1&times;</button>
+      <button class="speed-btn" data-speed="5">5&times;</button>
+      <button class="speed-btn" data-speed="20">20&times;</button>
+    </div>
+    <div id="build-menu">
+      <button class="build-btn wide" data-type="house">Build House</button>
+      <button class="build-btn wide" data-type="farmPlot">Build Farm plot</button>
+    </div>
     <div id="place-bar" hidden>
       <span id="place-status"></span>
       <button id="rotate" class="wide" title="Rotate (R)">Rotate (R)</button>
