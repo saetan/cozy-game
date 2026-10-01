@@ -1,0 +1,72 @@
+# Cozy Game — Game Design
+
+A cozy **village sim with idle progression** for the web browser, built on three.js with the procedural Pastel House Kit (`src/kit/kit.js`, see `design_handoff_house_kit/README.md` for kit conventions and design tokens).
+
+## Pitch
+
+You are the unseen caretaker of a small animal village. You place houses, farm plots, paths and a shared market; residents move in, take on roles and run the village on their own — farming, hauling crates and selling at the market. Coins grow houses, houses bring new residents, and the village keeps living while you're away.
+
+**Core loop**
+
+> more residents → more roles → more produce → coins → new buildings / house levels / land → more residents
+
+## Decisions
+
+| # | Topic | Decision |
+|---|---|---|
+| 1 | Genre | Village sim (c) + idle/incremental (d). |
+| 2 | Player | Unseen caretaker — no avatar. Top-down view, click/tap to select, give priorities. |
+| 3 | Control | Player **assigns roles**; residents execute them autonomously on a daily schedule. |
+| 4 | Time | **Fast in-game days** (~20 real min) while playing; **real-time catch-up** offline, capped (~8 h), with a "while you were away" summary. |
+| 5 | Progression | **Grow the village**: more buildings, house levels, land. Light collection layer (species, crops, vehicles). Residents arrive via house levels (Lv 1/3/6), not purchase. |
+| 6 | Economy | **Physical logistics**: farmer → crate at plot → hauler carries/wagons it → shared market → seller → coins. |
+| 7 | World | Large chunked grid (chunk = 16×16 cells, cell = 2 m; world size is config, e.g. 1000×1000). Start with **3×3 chunks unlocked**; buy neighbouring chunks with coins. Locked chunks render as wild meadow/fog. Sparse storage. |
+| 8 | Building growth | Buildings claim **only their current footprint**. Level-up is **blocked if next level's cells are occupied**; blocking cells shown in red (reuse the reference's next-level ghost). Placement supports **rotation in 90° steps** (plan stays in local cells; group + occupancy rotated). Level cost is a resource map `{ coins: n }` so other resources (wood…) can be added later. |
+| 9 | Movement | Hybrid: residents walk anywhere (A* over grid); **paths are faster** (~1.5×); **vehicles require roads**. Building cells block. |
+| 10 | MVP catalog | House (7 levels, existing `LEVELS`), Farm plot (1×1, choose crop), Market (2×2, one per village, 3 levels = 1–3 stalls), Path (new tile), Road (driveway), Decor (shrub, fence, scarecrow). Roles: farmer, hauler, seller, idle. No barn: each plot holds up to 3 crates, then stops producing. |
+| 11 | Bootstrap | Residents without a role are **generalists** doing the most urgent job; assigned roles **specialise** (~1.5× at their job). AI = **job board**: plots/crates/market post jobs, residents pick by role preference, then anything. Start: coins for 1 house + 2 farm plots, market Lv1 pre-placed. |
+| 12 | Platform | **Desktop first, touch-safe**: no hover-only info; every shortcut has a button; bottom contextual panel; placement with on-screen rotate/confirm. Mobile perf pass (merge/instancing) later. |
+| 13 | Save | **Local** (IndexedDB) auto-save + export/import. Single versioned JSON `{ version, savedAt, … }` behind a small `SaveStore` interface so cloud sync can be added later. Clock-changing "time travel" is accepted. |
+| 14 | Simulation | **Event-based, deterministic**: discrete tasks with durations; the sim jumps event to event. Same code runs live and offline. **Sim never reads frame time or three.js**; the renderer reads sim state and interpolates (e.g. walking along a path between t0 and t0+d). Catch-up events feed the away summary. |
+| 15 | Stack | **TypeScript** for game code (`sim/`, `systems/`, `save/`, `ui/`); **kit stays JS** with a hand-written `kit.d.ts`. **Vitest** tests the sim headlessly (seed + inputs → expected village). |
+| 16 | Residents | Random species/outfit, **generated name** and **one trait** (e.g. Green Thumb +15% crops, Sturdy carries 2 crates, Chatty sells faster, Sleepy starts late). "Someone moved in!" arrival card; resident list. |
+| 17 | Scope | Milestones below; balance numbers in `data/*.json`. |
+
+## Architecture sketch
+
+```
+src/
+  kit/        pieces, characters, actions, builder, levels (split from kit.js, JS) + kit.d.ts
+  sim/        clock, events, world (chunks, cells), buildings, jobs, residents, economy  — pure TS, no three.js
+  systems/    pathfinding (A*), placement rules, catch-up, save (SaveStore)
+  render/     scene, camera, chunk view, building view (diff by plan key + pop-in), actor view (interpolation)
+  ui/         HUD, build menu, selection panel, arrival card, away summary
+  data/       buildings.json, crops.json, prices.json, traits.json, names.json
+  main.ts
+```
+
+Data flow: **input → commands → sim**; **sim state → render/ui** (read-only). The sim is the single source of truth and the only thing saved.
+
+## Milestones
+
+| # | Milestone | Outcome |
+|---|---|---|
+| M0 | Foundations | Kit split into files; TS + Vitest; chunked world (3×3 unlocked); camera; selection + placement framework with rotation. |
+| M1 | Simulation core | Event clock + day cycle, A* with path costs, job board — headless and unit-tested. |
+| M2 | First loop | Place house + farm plots; one generalist farms → hauls → sells at the pre-placed market; coins rise; 3D view animates it. |
+| M3 | Growth | House level-up with costs, blocked-cell feedback and pop-in; resident arrivals (name, trait, card); role assignment; paths & roads. |
+| M4 | Idle | Versioned auto-save, offline catch-up, "while you were away" summary. |
+| M5 | Breadth (MVP+) | Market levels, wagon/bicycle hauling, 5 crops unlocking, decor, chunk purchase. |
+
+**MVP done (end of M4):** a new player can start a village, grow to 2+ houses with 3+ residents in different roles, close the tab, return hours later and see the catch-up summary — without errors.
+
+## Initial balance guesses (tune in `data/`)
+
+- In-game day ≈ 20 real minutes; offline cap 8 h.
+- Carrot grows in ⅓ in-game day; other crops slower and worth more.
+- House Lv2 ≈ 2 in-game days of income; each level ≈ 1.6× the previous.
+- Specialist ≈ 1.5× generalist at their job; path ≈ 1.5× walk speed.
+
+## Later / out of scope for MVP
+
+Cloud save & accounts · relationships/happiness · chosen arrivals (pick from applicants) · barn/storage · wood & other resources in costs · rule-based free-form house growth · mobile performance pass · possess-a-resident mode.
