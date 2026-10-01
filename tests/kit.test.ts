@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import * as Kit from '../src/kit/index.js';
-// @ts-expect-error untyped original single-file kit, the behaviour reference
 import * as Orig from '../design_handoff_house_kit/kit/kit.js';
 
 const summarize = (plan: { key: string; x: number; y: number; z: number; ry: number }[]) =>
