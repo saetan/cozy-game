@@ -16,6 +16,6 @@
     "farmPlot": [[0, 0]],
     "market": [[0, 0], [1, 0], [0, 1], [1, 1]]
   },
-  "species": ["cat", "fox", "bear", "rabbit", "frog"],
+  "species": ["cat", "fox", "bear", "bunny", "frog"],
   "names": ["Mochi", "Pip", "Juniper", "Biscuit", "Clover", "Maple", "Tansy", "Nutmeg", "Willow", "Poppy"]
 }

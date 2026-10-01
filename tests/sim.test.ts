@@ -5,6 +5,7 @@ import { advance, apply, createSim, snapshot, type SimState } from '../src/sim/s
 import { jobCost, claimJob, pickJob, postJob } from '../src/sim/jobs';
 import { residentPositionAt } from '../src/sim/position';
 import { accessCell, findPath } from '../src/systems/pathfinding';
+import { market } from '../src/sim/jobs';
 import balance from '../src/data/balance.json';
 import { createWorld, occupy } from '../src/sim/world';
 import type { Resident } from '../src/sim/state';
@@ -210,6 +211,18 @@ describe('night', () => {
       }
     }
     for (const r of sim.residents.values()) expect(r.task?.kind).not.toBe('job');
+  });
+  it('a seller with stock left stops selling at work end and goes home', () => {
+    const sim = village(1, 1);
+    apply(sim, { type: 'setRole', residentId: 1, role: 'seller' });
+    advance(sim, 0.8 * DAY_LENGTH - sim.t);
+    market(sim)!.stock = 1000; // far more than one evening can sell
+    advance(sim, 0.9 * DAY_LENGTH - sim.t);
+    expect(market(sim)!.stock).toBeGreaterThan(0);
+    const r = res(sim), home = accessCell(sim.world, sim.buildings.get(r.homeId)!.placement)!;
+    expect(r.jobId).toBeNull();
+    advance(sim, 200);
+    expect(r.cell).toEqual(home);
   });
 });
 

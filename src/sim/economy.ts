@@ -60,7 +60,8 @@ function runJob(sim: SimState, r: Resident): void {
     const w = to ? walk(sim, r, to, 'job', r.carrying ? 'carry' : 'walk') : false;
     if (w === true) return;
     if (w === false) { abort(sim, r, job); return; }
-    if (op.effect === 'sell' && (b!.stock ?? 0) <= 0) { r.stage = plan.length; continue; }
+    // selling is open-ended, so it stops at work end instead of running all night
+    if (op.effect === 'sell' && ((b!.stock ?? 0) <= 0 || !isWorkHours(sim.t))) { r.stage = plan.length; continue; }
     const spec = r.role === ROLE_OF[job.kind] ? balance.specialistMultiplier : 1;
     startTask(sim, r, { kind: 'job', action: op.action, start: sim.t, end: sim.t + balance.times[op.time] / spec });
     return;
