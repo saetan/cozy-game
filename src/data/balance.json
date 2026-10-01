@@ -1,0 +1,21 @@
+{
+  "dayLength": 1200,
+  "workStart": 0.25,
+  "workEnd": 0.85,
+  "startTimeOfDay": 0.25,
+  "walkSpeed": 2,
+  "pathSpeedMultiplier": 1.5,
+  "specialistMultiplier": 1.5,
+  "maxCrates": 3,
+  "waterFraction": 0.5,
+  "times": { "plant": 4, "water": 3, "harvest": 5, "pickup": 2, "drop": 2, "sell": 3 },
+  "crops": { "carrot": { "growTime": 400, "price": 10 } },
+  "defaultCrop": "carrot",
+  "footprints": {
+    "house": [[0, 0], [1, 0], [0, 1], [1, 1]],
+    "farmPlot": [[0, 0]],
+    "market": [[0, 0], [1, 0], [0, 1], [1, 1]]
+  },
+  "species": ["cat", "fox", "bear", "bunny", "frog"],
+  "names": ["Mochi", "Pip", "Juniper", "Biscuit", "Clover", "Maple", "Tansy", "Nutmeg", "Willow", "Poppy"]
+}
