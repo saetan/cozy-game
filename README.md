@@ -11,3 +11,8 @@ npm run dev
 - `src/kit/kit.js` — Pastel House Kit (pieces, characters, actions, builder, levels)
 - `docs/GAME_DESIGN.md` — game direction, decisions and milestones
 - `design_handoff_house_kit/` — original Claude Design handoff: README with conventions & design tokens, interactive reference (`reference/House Kit.html`)
+
+## Tests
+
+- `npm test` runs the Vitest unit/sim tests (`tests/`).
+- `npm run e2e` runs the Playwright browser tests (`e2e/`) against an e2e-mode production build (test hooks `window.__game` / `window.__e2e` exist only there and in dev). First time: `npx playwright install chromium`. Report: `npx playwright show-report`.
