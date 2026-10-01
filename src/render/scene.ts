@@ -55,5 +55,11 @@ export function createScene(canvas: HTMLCanvasElement) {
     renderer.render(scene, camera);
   });
 
-  return { renderer, scene, camera, controls, onFrame: (h: (t: number) => void) => { frameHooks.push(h); } };
+  /** While painting tiles the left mouse / one finger must not orbit; two-finger pan/zoom and right-drag pan stay. */
+  function setPaintMode(on: boolean) {
+    (controls.mouseButtons as { LEFT: unknown }).LEFT = on ? null : THREE.MOUSE.ROTATE;
+    (controls.touches as { ONE: unknown }).ONE = on ? null : THREE.TOUCH.ROTATE;
+  }
+
+  return { renderer, scene, camera, controls, setPaintMode, onFrame: (h: (t: number) => void) => { frameHooks.push(h); } };
 }
