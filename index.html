@@ -9,10 +9,14 @@
 <body>
   <canvas id="game"></canvas>
   <div id="hud">
-    <button id="down">−</button>
-    <span id="level"></span>
-    <button id="up">+</button>
+    <button id="build" class="wide">Build House</button>
+    <div id="place-bar" hidden>
+      <span id="place-status"></span>
+      <button id="rotate" class="wide" title="Rotate (R)">Rotate (R)</button>
+      <button id="confirm" class="wide primary">Place</button>
+      <button id="cancel" class="wide" title="Cancel (Esc)">Cancel (Esc)</button>
+    </div>
   </div>
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

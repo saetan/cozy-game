@@ -1,6 +1,12 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f0ea; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #3a3632; }
 #game { display: block; width: 100vw; height: 100vh; }
-#hud { position: fixed; top: 16px; left: 16px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255, 253, 250, 0.92); border: 1px solid rgba(58, 54, 50, 0.12); border-radius: 10px; font-size: 13px; }
-#hud button { font: inherit; width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(58, 54, 50, 0.2); background: #fdfbf8; cursor: pointer; }
+#hud { position: fixed; max-width: calc(100vw - 32px); box-sizing: border-box; top: 16px; left: 16px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255, 253, 250, 0.92); border: 1px solid rgba(58, 54, 50, 0.12); border-radius: 10px; font-size: 13px; }
+#hud button { font: inherit; min-height: 36px; padding: 0 12px; border-radius: 6px; border: 1px solid rgba(58, 54, 50, 0.2); background: #fdfbf8; cursor: pointer; touch-action: manipulation; }
 #hud button:hover { background: #3a3632; color: #fdfbf8; }
-#level { min-width: 140px; text-align: center; }
+#hud button.primary { background: #a6dcc4; }
+#hud button:disabled { opacity: 0.45; cursor: default; }
+#hud button:disabled:hover { background: #fdfbf8; color: inherit; }
+#place-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#place-bar[hidden], #build[hidden] { display: none; }
+#place-status { min-width: 200px; }
+#game { touch-action: none; }
