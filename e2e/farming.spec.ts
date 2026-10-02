@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { copyFileSync, mkdirSync, readdirSync } from 'node:fs';
-import { openGame } from './helpers';
+import { openGame, pauseClock } from './helpers';
 
 // Proof is scene-graph assertions at exact sim moments (runUntil steps the sim event by event, then redraws once).
 // Screenshots and the video are evidence only.
@@ -15,16 +15,6 @@ const R = '(s => [...s.residents.values()][0])';
 const onPlant = `s => { const r = ${R}(s); return !!r.task && r.task.action === 'work' && s.jobs.get(r.jobId)?.kind === 'plant'; }`;
 const onWater = `s => { const r = ${R}(s); return !!r.task && r.task.action === 'water'; }`;
 const plotIs = (id: number, st: string) => `s => s.buildings.get(${id}).plotState === '${st}'`;
-
-/** page.clock keeps flowing in real time by default, so on slow CI renderers the sim would run on between steps.
- *  Pause it a moment ahead (at most one clamped frame); retry if that moment has already passed. */
-async function pauseClock(page: Page) {
-  for (let i = 0; i < 5; i++) {
-    try { await page.clock.pauseAt(await page.evaluate(() => Date.now() + 250)); return; }
-    catch (e) { if (!String(e).includes('past')) throw e; }
-  }
-  throw new Error('could not pause page.clock');
-}
 
 /** A house with one resident and a plot next to the market. */
 async function village(page: Page) {

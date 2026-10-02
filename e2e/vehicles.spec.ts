@@ -45,7 +45,7 @@ test('a resident with a bicycle and a road to the field is seen riding', async (
   await page.evaluate(([cx, cz]) => {
     const g = (window as any).__game, cells = [] as number[][];
     for (let i = 0; i <= 14; i++) cells.push([cx + i, cz]);
-    g.apply({ type: 'setTile', cells, kind: 'road' });
+    g.apply({ type: 'setTile', cells, kind: 'lane' });
     g.placeBuilding('farmPlot', 0, [cx + 14, cz + 2]);
     g.placeBuilding('scarecrow', 0, [cx + 11, cz + 2]);
     g.placeBuilding('shrub', 0, [cx + 3, cz - 2]);
