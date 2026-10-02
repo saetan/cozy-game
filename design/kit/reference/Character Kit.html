@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Character Kit — residents, rig, base actions</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #f4f0ea; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #3a3632; overflow: hidden; }
+  a { color: #b86f63; } a:hover { color: #8f4f45; }
+  three-d-stage { display: block; width: 100vw; height: 100vh; }
+  #panel { position: fixed; top: 16px; left: 16px; width: 248px; padding: 14px; display: flex; flex-direction: column; gap: 12px; z-index: 5;
+    background: rgba(255,253,250,0.92); border: 1px solid rgba(58,54,50,0.12); border-radius: 10px; font-size: 12px; line-height: 1.45; }
+  #panel h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  .lbl { font-size: 11px; color: #7a736c; margin-bottom: 5px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .seg button { font: inherit; font-size: 12px; padding: 6px 9px; border-radius: 6px; border: 1px solid rgba(58,54,50,0.18); background: #fdfbf8; color: #3a3632; cursor: pointer; }
+  .seg button:hover { background: #f3eee7; }
+  .seg button.on { background: #3a3632; color: #fdfbf8; border-color: #3a3632; }
+  .note { color: #6d665f; text-wrap: pretty; }
+  .legend { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; color: #6d665f; }
+  .legend b { font-weight: 600; color: #3a3632; }
+  #seq { font-variant-numeric: tabular-nums; color: #3a3632; }
+</style>
+</head>
+<body>
+<three-d-stage name="character-kit" background="#f4f0ea"></three-d-stage>
+<div id="panel">
+  <h1>Characters</h1>
+  <div><div class="lbl">Action (character-only; vehicle + farm actions live in their kits)</div><div class="seg" id="acts"></div></div>
+  <div><div class="lbl">Outfits</div><div class="seg" id="outfit"></div></div>
+  <div><div class="lbl">Rig</div><div class="seg" id="rig"></div></div>
+  <div class="note" id="hint"></div>
+</div>
+<script src="three-d-stage.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import * as Kit from '../kit/kit.js';
+
+const stage = document.querySelector('three-d-stage');
+await stage.ready;
+const { box, grp, P, CELL } = Kit;
+const shadows = g => g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+const put = (g, o, x, y, z, ry = 0) => { o.position.set(x, y, z); o.rotation.y = ry; g.add(o); return o; };
+const grassM = Kit.M('preview_grass', '#cfe3bf', 0.95);
+const seg = (id, items, cur, onPick) => {
+  const el = document.getElementById(id); el.innerHTML = '';
+  for (const [k, label] of items) { const b = document.createElement('button'); b.textContent = label; b.dataset.k = k; b.onclick = () => onPick(k); el.appendChild(b); }
+  [...el.children].forEach(b => b.classList.toggle('on', b.dataset.k === String(cur)));
+};
+const cam = (t, p) => { stage._controls.target.set(...t); stage._camera.position.set(...p); stage._camera.near = 0.1; stage._camera.far = 500; stage._camera.updateProjectionMatrix(); stage._controls.update(); };
+
+const S = Object.assign({ action: 'walk', outfit: 'default', rig: 'off', seed: 1 }, JSON.parse(localStorage.getItem('charkit.state') || '{}'));
+const CHAR_ACTIONS = [['stand', 'Stand'], ['walk', 'Walk'], ['wave', 'Wave']];
+const jointM = new THREE.MeshBasicMaterial({ color: '#e0705f', depthTest: false }); jointM.name = 'joint_marker';
+function build() {
+  Kit.clearActors();
+  const g = grp('character_kit'), cl = Object.keys(Kit.CLOTH);
+  g.add(box('ground', 14, 0.06, 6, grassM, 0, -0.03, 0));
+  Kit.SPECIES.forEach((sp, i) => {
+    const [o, s] = S.outfit === 'default' ? Kit.RES_DEFAULT[sp] : [cl[(i * 3 + S.seed) % cl.length], cl[(i * 7 + S.seed * 2 + 1) % cl.length]];
+    const res = put(g, Kit.setAction(Kit.resident(sp, { outfit: Kit.CLOTH[o], scarf: Kit.CLOTH[s] }), S.action), (i - 2) * 2.2, 0, 0);
+    if (S.rig === 'on') ['rig', 'leg_l', 'leg_r', 'arm_l', 'arm_r', 'head'].forEach(n => {
+      const j = res.getObjectByName(n), m = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), jointM);
+      m.name = 'joint_' + n; m.renderOrder = 10; j.add(m);
+    });
+  });
+  shadows(g); stage.setObject(g); cam([-1.6, 0.7, 0], [1.9, 3.2, 9.5]);
+}
+function sync() {
+  seg('acts', CHAR_ACTIONS, S.action, k => { S.action = k; go(); });
+  seg('outfit', [['default', 'Default'], ['mixed', 'Shuffle']], S.outfit, k => { if (k === 'mixed') S.seed++; S.outfit = k; go(); });
+  seg('rig', [['off', 'Hidden'], ['on', 'Show joints']], S.rig, k => { S.rig = k; go(); });
+  document.getElementById('hint').innerHTML = `setAction(resident(species, { outfit, scarf }), '${S.action}')<br>Joints: rig · leg_l/leg_r (hip y 0.28) · arm_l/arm_r (shoulder y 0.7, x ±0.25) · head (y 1.05). New actions: defineAction(name, { label, pose, setup, tick }).`;
+  localStorage.setItem('charkit.state', JSON.stringify(S));
+}
+const go = () => { build(); sync(); };
+go();
+(function tick() { const t = performance.now() / 1000; for (const a of Kit.getActors()) Kit.animate(a, t + a.userData.phase); requestAnimationFrame(tick); })();
+
+</script>
+</body>
+</html>

@@ -1,9 +1,8 @@
-// Public API of the Pastel House Kit (same surface as the original single-file kit).
-export { getActors, clearActors } from './characters.js';
-export { CELL, WALL_H, T, FOUND_H, RISE, M, PLASTER, ROOF, FUR, CLOTH, PAINT, box, grp, P } from './shared.js';
-export { PITCH, PORCH_RISE, PORCH_EAVE } from './pieces.js';
-export { SPECIES, RES_DEFAULT, POSES, resident, setPose } from './characters.js';
-export { ACTIONS, setAction, animate, board, actorScene } from './actions.js';
-export { SIDES, rect, hash, rng, pick, buildPlan } from './builder.js';
-export { LEVELS, LEVEL_STYLE, house } from './levels.js';
-export { CROPS, produce, crop } from './pieces.js';
+// The game's single entry point to the Pastel House Kit. The kit itself is vendored, untouched, in design/kit/
+// (see design/README.md). roads.js is not exported yet; import it separately when the game needs roads.
+import { ACTIONS as KIT_ACTIONS } from '../../design/kit/kit/kit.js';
+
+export * from '../../design/kit/kit/kit.js';
+
+// Kit 0.2 keeps 'work' as a legacy alias of 'hoe' but leaves it out of the label list; the game still uses 'work'.
+export const ACTIONS = { ...KIT_ACTIONS, work: KIT_ACTIONS.work ?? KIT_ACTIONS.hoe };

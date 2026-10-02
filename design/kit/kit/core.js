@@ -1,4 +1,5 @@
-// Shared materials, helpers and grid constants for the kit modules.
+// Pastel House Kit — core: grid constants, shared materials, mesh helpers, RNG and the shared piece registry P.
+// Conventions (see README): 1 unit = 1 m, +Y up, +Z = front/outside, pieces pivot at their ground/edge anchor.
 import * as THREE from 'three';
 
 // ---- grid conventions ----
@@ -24,7 +25,6 @@ function box(name, w, h, d, mat, x = 0, y = 0, z = 0) {
 const grp = (name, ...kids) => { const g = new THREE.Group(); g.name = name; kids.forEach(k => g.add(k)); return g; };
 // wraps a centred wall body so its outer face sits on z=0
 const onEdge = (name, body) => { body.position.z = -T / 2; return grp(name, body); };
-const P = {};
 
 function ico(name, r, mat, x = 0, y = 0, z = 0, detail = 0) {
   const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, detail), mat);
@@ -34,13 +34,23 @@ function cone(name, r, h, seg, mat, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), mat);
   m.name = name; m.position.set(x, y, z); return m;
 }
+function bar(name, a, b, t, mat) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(t, t, A.distanceTo(B)), mat);
+  m.name = name; m.position.copy(A).lerp(B, 0.5); m.lookAt(B); return m;
+}
 const PAINT = { peach: M('paint_peach', '#f6b89a', 0.5), sky: M('paint_sky', '#9fc3ea', 0.5), mint: M('paint_mint', '#a6dcc4', 0.5), butter: M('paint_butter', '#f3d98a', 0.5) };
-const tire = M('tire', '#5f5956', 0.95), lamp = M('lamp', '#fff4c9', 0.3);
-const FUR = { bunny: M('fur_bunny', '#f8f3ec'), bear: M('fur_bear', '#d9b28e'), cat: M('fur_cat', '#bcb3c9'),
-              fox: M('fur_fox', '#f2a97c'), frog: M('fur_frog', '#b6dca2') };
-const CLOTH = { blue: M('cloth_blue', '#a9c4e8'), pink: M('cloth_pink', '#f3b3c1'), yellow: M('cloth_yellow', '#f2d98c'),
-                lilac: M('cloth_lilac', '#c9b3e0'), mint: M('cloth_mint', '#a8d8c0') };
-const cream = M('fur_cream', '#fbf3e6'), blush = M('blush_pink', '#f4b3b3'), eyeMat = M('eye_dark', '#3a3230', 0.4);
+const rect = (x0, x1, z0, z1, f) => { const a = []; for (let x = x0; x < x1; x++) for (let z = z0; z < z1; z++) a.push([x, z, f]); return a; };
+function hash(...n) { let h = 2166136261; for (const ch of n.join(',')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) / 4294967296; }
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const pick = (r, o) => { const v = Object.values(o); return v[Math.floor(r() * v.length)]; };
+const ease = x => x * x * (3 - 2 * x), lerp = (a, b, k) => a + (b - a) * k, frac = x => x - Math.floor(x);
+const rnd = n => frac(Math.sin(n * 127.1 + 311.7) * 43758.5453);
 
-export { FUR, CLOTH, cream, blush, eyeMat, rng, THREE, CELL, WALL_H, T, FOUND_H, RISE, M, PLASTER, ROOF, trim, wood, glass, stone, leaf, dark, box, grp, onEdge, P, ico, cone, PAINT, tire, lamp };
+// every module registers its pieces here: P.wall(), P.car(), P.farmPlot()…
+const P = {};
+
+export {
+  THREE, CELL, WALL_H, T, FOUND_H, RISE, M, PLASTER, ROOF, PAINT, trim, wood, glass, stone, leaf, dark,
+  box, grp, onEdge, ico, cone, bar, rect, hash, rng, pick, ease, lerp, frac, rnd, P,
+};

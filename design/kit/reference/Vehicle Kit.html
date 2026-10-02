@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vehicle Kit — car, bike, wagon, bike stand</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #f4f0ea; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #3a3632; overflow: hidden; }
+  a { color: #b86f63; } a:hover { color: #8f4f45; }
+  three-d-stage { display: block; width: 100vw; height: 100vh; }
+  #panel { position: fixed; top: 16px; left: 16px; width: 248px; padding: 14px; display: flex; flex-direction: column; gap: 12px; z-index: 5;
+    background: rgba(255,253,250,0.92); border: 1px solid rgba(58,54,50,0.12); border-radius: 10px; font-size: 12px; line-height: 1.45; }
+  #panel h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  .lbl { font-size: 11px; color: #7a736c; margin-bottom: 5px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .seg button { font: inherit; font-size: 12px; padding: 6px 9px; border-radius: 6px; border: 1px solid rgba(58,54,50,0.18); background: #fdfbf8; color: #3a3632; cursor: pointer; }
+  .seg button:hover { background: #f3eee7; }
+  .seg button.on { background: #3a3632; color: #fdfbf8; border-color: #3a3632; }
+  .note { color: #6d665f; text-wrap: pretty; }
+  .legend { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; color: #6d665f; }
+  .legend b { font-weight: 600; color: #3a3632; }
+  #seq { font-variant-numeric: tabular-nums; color: #3a3632; }
+</style>
+</head>
+<body>
+<three-d-stage name="vehicle-kit" background="#f4f0ea"></three-d-stage>
+<div id="panel">
+  <h1>Vehicles</h1>
+  <div><div class="lbl">View</div><div class="seg" id="views"></div></div>
+  <div class="legend" id="legend"></div>
+  <div class="note" id="note"></div>
+</div>
+<script src="three-d-stage.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import * as Kit from '../kit/kit.js';
+
+const stage = document.querySelector('three-d-stage');
+await stage.ready;
+const { box, grp, P, CELL } = Kit;
+const shadows = g => g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+const put = (g, o, x, y, z, ry = 0) => { o.position.set(x, y, z); o.rotation.y = ry; g.add(o); return o; };
+const grassM = Kit.M('preview_grass', '#cfe3bf', 0.95);
+const seg = (id, items, cur, onPick) => {
+  const el = document.getElementById(id); el.innerHTML = '';
+  for (const [k, label] of items) { const b = document.createElement('button'); b.textContent = label; b.dataset.k = k; b.onclick = () => onPick(k); el.appendChild(b); }
+  [...el.children].forEach(b => b.classList.toggle('on', b.dataset.k === String(cur)));
+};
+const cam = (t, p) => { stage._controls.target.set(...t); stage._camera.position.set(...p); stage._camera.near = 0.1; stage._camera.far = 500; stage._camera.updateProjectionMatrix(); stage._controls.update(); };
+
+const { PAINT, CLOTH, LEVELS, buildPlan, board, alight, parkBike, unparkBike, slotWorld, WALK_BIKE_OFFSET, setAction, newResident, ease, lerp } = Kit;
+const S = Object.assign({ view: 'parking' }, JSON.parse(localStorage.getItem('vehkit.state') || '{}'));
+let tickers = [];
+const spin = (v, ds, r) => v.traverse(o => { if (o.name === 'wheel' && o.parent === v) o.rotation.x += ds / r; });
+
+// ---- ride & push: three loops + the pieces in the middle ----
+function buildRide() {
+  const g = grp('vehicle_kit_ride');
+  g.add(box('ground', 22, 0.06, 22, grassM, 0, -0.03, 0));
+  const pathM = Kit.M('preview_track', '#ebe4d8', 0.95);
+  for (const r of [8, 5.2, 3.2]) for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; put(g, box('track', 0.9, 0.012, 1.1, pathM), Math.cos(a) * r, 0.006, Math.sin(a) * r, -a); }
+  const loop = (v, r, speed, wr) => { let a = Math.random() * 6; tickers.push(dt => { const d = speed * dt; a += d / r; v.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); v.rotation.y = -a; if (wr) spin(v, d, wr); }); };
+  loop(put(g, board(P.car({ paint: PAINT.peach }), newResident('fox')), 0, 0, 0), 8, 3.2, 0.28);
+  loop(put(g, board(P.bicycle({ paint: PAINT.mint }), newResident('bunny')), 0, 0, 0), 5.2, 1.9, 0);
+  loop(put(g, board(P.wagon({ paint: PAINT.sky }), newResident('bear')), 0, 0, 0), 3.2, 0.9, 0.15);
+  const st = put(g, P.bikeStand(), 0.6, 0, 0.4); parkBike(st, P.bicycle({ paint: PAINT.butter }), 1);
+  put(g, P.car({ paint: PAINT.sky }), -1.2, 0, -0.6, 0.5);
+  return { g, t: [0, 0.6, 0], p: [10, 11, 15] };
+}
+
+// ---- bike parking at a house: ride in, walk the bike into the stand, go to the door, come back, ride away ----
+const LOT_O = -3, lw = x => x * CELL + LOT_O;
+function buildParking() {
+  const g = grp('vehicle_kit_parking'), L = LEVELS[3];
+  g.add(box('ground', 26, 0.06, 26, grassM, 0, -0.03, 2));
+  let stand = null, garage = null;
+  for (const it of buildPlan(L, LOT_O, LOT_O)) { const o = put(g, it.make(), it.x, it.y, it.z, it.ry); if (it.key.startsWith('bikeStand')) stand = o; if (it.key.endsWith(':garage')) garage = o.getObjectByName('garage_door'); }
+  // garage: the car drives in and back out on a loop
+  const car = put(g, board(P.car({ paint: PAINT.sky }), newResident('cat')), lw(-0.5), 0, lw(3.6), Math.PI);
+  const outZ = lw(3.6), inZ = lw(1.0);
+  tickers.push((dt, t) => {
+    const e = t % 14, dir = e < 7 ? 1 : -1, u = e % 7;
+    const open = u < 0.8 ? u / 0.8 : u < 3.4 ? 1 : Math.max(0, 1 - (u - 3.4) / 0.8);
+    garage.rotation.x = Math.PI / 2 * 0.97 * ease(open);
+    const m = ease(Math.min(1, Math.max(0, (u - 0.7) / 2.5))), z = dir > 0 ? lerp(outZ, inZ, m) : lerp(inZ, outZ, m);
+    spin(car, z - car.position.z, 0.28); car.position.z = z;
+  });
+  // bike choreography
+  const bike = put(g, P.bicycle({ paint: PAINT.peach }), 0, 0, 0), res = newResident('frog');
+  const slot = slotWorld(stand, 0), sx = slot.pos.x, A = slot.approach.clone(), far = new THREE.Vector3(sx, 0, 12);
+  const door = [new THREE.Vector3(sx + 0.55, 0, A.z), new THREE.Vector3(sx + 0.55, 0, lw(3.4)), new THREE.Vector3(lw(0.5), 0, lw(3.4))];
+  const placeWalker = () => { const o = new THREE.Vector3(...WALK_BIKE_OFFSET).applyAxisAngle(new THREE.Vector3(0, 1, 0), bike.rotation.y); res.position.copy(bike.position).add(o); res.rotation.y = bike.rotation.y; };
+  const along = (pts, u) => { const n = pts.length - 1, k = Math.min(n - 1, Math.floor(u * n)), f = u * n - k, a = pts[k], b = pts[k + 1]; return [a.clone().lerp(b, f), Math.atan2(b.x - a.x, b.z - a.z)]; };
+  const riding = () => { if (bike.parent !== g) unparkBike(bike, g); if (!bike.getObjectByName('rider').children.length) { g.remove(res); board(bike, res); } };
+  const walking = a => { if (bike.getObjectByName('rider').children.length) { alight(bike); g.add(res); } if (res.parent !== g) g.add(res); setAction(res, a); };
+  const PH = [
+    { d: 3.6, label: 'ride in', enter: riding, up: u => { bike.position.lerpVectors(far, A, ease(u)); bike.rotation.y = Math.PI; spin(bike, 0, 1); } },
+    { d: 0.6, label: 'hop off', enter: () => { walking('stand'); placeWalker(); } },
+    { d: 1.5, label: 'walk the bike in', enter: () => walking('walkBike'), up: u => { bike.position.lerpVectors(A, slot.pos, ease(u)); placeWalker(); } },
+    { d: 0.3, label: 'parked', enter: () => { parkBike(stand, bike, 0); walking('stand'); } },
+    { d: 3.4, label: 'walk to the door', enter: () => walking('walk'), up: u => { const [p, h] = along(door, u); res.position.copy(p); res.rotation.y = h; } },
+    { d: 1.8, label: 'wave', enter: () => walking('wave') },
+    { d: 3.4, label: 'walk back', enter: () => walking('walk'), up: u => { const [p, h] = along([...door].reverse(), u); res.position.copy(p); res.rotation.y = h; } },
+    { d: 1.5, label: 'take the bike out', enter: () => { unparkBike(bike, g); walking('walkBike'); }, up: u => { bike.position.lerpVectors(slot.pos, A, ease(u)); bike.rotation.y = Math.PI; placeWalker(); } },
+    { d: 0.7, label: 'turn around', enter: () => walking('stand'), up: u => { bike.rotation.y = Math.PI * (1 - ease(u)); placeWalker(); } },
+    { d: 3.2, label: 'ride away', enter: riding, up: u => { bike.position.lerpVectors(A, far, ease(u)); bike.rotation.y = 0; } },
+  ];
+  const total = PH.reduce((s, p) => s + p.d, 0); let cur = -1;
+  tickers.push((dt, t) => {
+    let e = t % total, k = 0; while (e > PH[k].d) e -= PH[k++].d;
+    if (k !== cur) { cur = k; PH[k].enter && PH[k].enter(); document.getElementById('note').textContent = `Bike: ${k + 1}/${PH.length} · ${PH[k].label}. Car: drives into the garage and back out on a loop.`; }
+    PH[k].up && PH[k].up(e / PH[k].d);
+  });
+  riding(); bike.position.copy(far);
+  return { g, t: [lw(1.5), 0.5, lw(2.5)], p: [lw(1.5) + 11, 10, lw(2.5) + 13] };
+}
+
+const VIEWS = { parking: ['Bike parking + garage', buildParking], ride: ['Ride & push', buildRide] };
+const LEG = {
+  parking: '<b>Stand</b><span>spec.bikeStand = [x, z] (cell, entry from +z). parkBike / unparkBike / slotWorld(stand, i) → { pos, ry, approach }</span><b>Rider</b><span>board / alight; walkBike action with WALK_BIKE_OFFSET</span><b>Garage</b><span>garage_door hinges at top; open = rotation.x π/2·0.97</span>',
+  ride: '<b>Car</b><span>sit · driver on the bench</span><b>Bicycle</b><span>ride · pedalling 6 rad/s</span><b>Wagon</b><span>push · 5.5 rad/s gait</span><b>Centre</b><span>bike stand (1 parked) · parked car</span>',
+};
+function show() {
+  Kit.clearActors(); tickers = [];
+  const v = VIEWS[S.view][1](); shadows(v.g); stage.setObject(v.g); cam(v.t, v.p);
+  seg('views', Object.entries(VIEWS).map(([k, [l]]) => [k, l]), S.view, k => { S.view = k; show(); });
+  document.getElementById('legend').innerHTML = LEG[S.view];
+  if (S.view === 'ride') document.getElementById('note').textContent = 'All three loop forever; wheels spin by distance / radius.';
+  localStorage.setItem('vehkit.state', JSON.stringify(S));
+}
+show();
+let last = performance.now(), clock = 0;
+(function tick() {
+  const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
+  for (const f of tickers) f(dt, clock);
+  for (const a of Kit.getActors()) Kit.animate(a, clock + a.userData.phase);
+  requestAnimationFrame(tick);
+})();
+
+</script>
+</body>
+</html>

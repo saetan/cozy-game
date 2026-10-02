@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Road Kit — roads, junctions & garden paths</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #f4f0ea; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #3a3632; overflow: hidden; }
+  a { color: #b86f63; } a:hover { color: #8f4f45; }
+  three-d-stage { display: block; width: 100vw; height: 100vh; }
+  #panel { position: fixed; top: 16px; left: 16px; width: 248px; padding: 14px; display: flex; flex-direction: column; gap: 12px; z-index: 5;
+    background: rgba(255,253,250,0.92); border: 1px solid rgba(58,54,50,0.12); border-radius: 10px; font-size: 12px; line-height: 1.45; }
+  #panel h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  .lbl { font-size: 11px; color: #7a736c; margin-bottom: 5px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .seg button { font: inherit; font-size: 12px; padding: 6px 9px; border-radius: 6px; border: 1px solid rgba(58,54,50,0.18); background: #fdfbf8; color: #3a3632; cursor: pointer; }
+  .seg button:hover { background: #f3eee7; }
+  .seg button.on { background: #3a3632; color: #fdfbf8; border-color: #3a3632; }
+  .note { color: #6d665f; text-wrap: pretty; }
+  .legend { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; color: #6d665f; }
+  .legend b { font-weight: 600; color: #3a3632; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<three-d-stage name="road-kit" background="#f4f0ea"></three-d-stage>
+<div id="panel">
+  <h1>Roads &amp; paths</h1>
+  <div><div class="lbl">View</div><div class="seg" id="views"><button data-v="pieces">Pieces</button><button data-v="street">Street</button><button data-v="town">Town</button></div></div>
+
+  <div id="c-pieces" class="legend">
+    <b>Row 1</b><span>Road: dead end · straight · bend · T · cross · roundabout (3) · roundabout (4)</span>
+    <b>Row 2</b><span>Dirt: dead end · straight · bend · T · cross · road → dirt</span>
+    <b>Row 3</b><span>Garden path, gravel: end · straight · bend · T · cross</span>
+    <b>Row 4</b><span>Stepping stones: straight · bend · T · picket + gate · mailbox</span>
+  </div>
+
+  <div id="c-street">
+    <div class="lbl">House level</div>
+    <div class="seg" id="levels"></div>
+    <div class="lbl" style="margin-top:10px">Garden path</div>
+    <div class="seg" id="pstyle"><button data-s="gravel">Gravel</button><button data-s="stones">Stepping stones</button></div>
+    <div class="lbl" style="margin-top:10px">Front fence</div>
+    <div class="seg" id="fence"><button data-f="1">On</button><button data-f="0">Off</button></div>
+  </div>
+
+  <div id="c-town">
+    <div class="lbl">Click tiles to paint</div>
+    <div class="seg" id="tools"><button data-t="road">Road</button><button data-t="dirt">Dirt</button><button data-t="round">Roundabout</button><button data-t="erase">Erase</button></div>
+    <div class="seg" style="margin-top:8px"><button id="regen">New layout</button><button id="clear">Clear</button></div>
+  </div>
+
+  <div class="note" id="note"></div>
+</div>
+<script src="three-d-stage.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import * as Kit from '../kit/kit.js';
+import * as R from '../kit/roads.js';
+
+const stage = document.querySelector('three-d-stage');
+await stage.ready;
+const { box, grp, P, CELL } = Kit, RM = R.ROAD_MAT, TILE = R.TILE;
+const gridM = Kit.M('grid_line', '#e6f0dc', 0.9);
+const S = Object.assign({ view: 'street', level: 3, style: 'gravel', fence: true, tool: 'road', seed: 4 }, JSON.parse(localStorage.getItem('roadkit.state') || '{}'));
+const save = () => localStorage.setItem('roadkit.state', JSON.stringify({ view: S.view, level: S.level, style: S.style, fence: S.fence, tool: S.tool, seed: S.seed }));
+
+let root = null, tickers = [];
+function mount(g, frame) {
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  if (frame || !root) stage.setObject(g);
+  else { stage._scene.remove(root); stage._scene.add(g); stage._object = g; }
+  root = g;
+}
+const place = (g, it) => { const o = it.make(); o.position.set(it.x, it.y, it.z); o.rotation.y = it.ry; g.add(o); return o; };
+const put = (g, o, x, y, z, ry = 0) => { o.position.set(x, y, z); o.rotation.y = ry; g.add(o); return o; };
+const grass = (x0, x1, z0, z1) => box('ground_grass', x1 - x0, 0.06, z1 - z0, RM.grass, (x0 + x1) / 2, -0.03, (z0 + z1) / 2);
+const PAINTS = Object.values(Kit.PAINT), SPECIES = Kit.SPECIES, CLOTHS = Object.values(Kit.CLOTH);
+
+function car(k) {
+  const c = P.car({ paint: PAINTS[k % PAINTS.length] });
+  Kit.board(c, Kit.resident(SPECIES[(k + 1) % SPECIES.length], { outfit: CLOTHS[k % CLOTHS.length], scarf: CLOTHS[(k + 2) % CLOTHS.length] }));
+  return c;
+}
+
+// ---------- pieces ----------
+function buildPieces() {
+  const g = grp('road_kit_pieces'), gap = TILE + 1.5;
+  const row = (list, z, size) => list.forEach((o, k) => { const x = k * gap; g.add(grass(x - size / 2 - 0.3, x + size / 2 + 0.3, z - size / 2 - 0.3, z + size / 2 + 0.3)); put(g, o, x, 0, z); });
+  const A = 'road', D = 'dirt';
+  row([R.roadTile({ conn: { S: A } }), R.roadTile({ conn: { N: A, S: A } }), R.roadTile({ conn: { S: A, E: A } }), R.roadTile({ conn: { W: A, E: A, S: A } }),
+       R.roadTile({ conn: { N: A, E: A, S: A, W: A } }), R.roadTile({ conn: { W: A, E: A, S: A }, round: true }), R.roadTile({ conn: { N: A, E: A, S: A, W: A }, round: true, seed: 3 })], 0, TILE);
+  row([R.dirtTile({ conn: { S: D }, seed: 1 }), R.dirtTile({ conn: { N: D, S: D }, seed: 2 }), R.dirtTile({ conn: { S: D, E: D }, seed: 3 }), R.dirtTile({ conn: { W: D, E: D, S: D }, seed: 4 }),
+       R.dirtTile({ conn: { N: D, E: D, S: D, W: D }, seed: 5 }), R.roadTile({ conn: { N: D, S: A }, seed: 6 })], gap, TILE);
+  const pg = 3.0, pz = gap * 2 - 1;
+  const prow = (list, z) => list.forEach((o, k) => { const x = -TILE / 2 + CELL / 2 + k * pg; g.add(grass(x - 1.15, x + 1.15, z - 1.15, z + 1.15)); put(g, o, x, 0, z); });
+  prow([{ S: 1 }, { N: 1, S: 1 }, { N: 1, E: 1 }, { W: 1, E: 1, S: 1 }, { N: 1, E: 1, S: 1, W: 1 }].map((c, k) => R.pathTile({ conn: c, seed: k + 1 })), pz);
+  const z4 = pz + pg;
+  prow([{ N: 1, S: 1 }, { N: 1, E: 1 }, { W: 1, E: 1, S: 1 }].map((c, k) => R.pathTile({ conn: c, style: 'stones', seed: k + 9 })), z4);
+  const fx = -TILE / 2 + CELL / 2 + 3 * pg;
+  g.add(grass(fx - 1.15, fx + 1.15 + pg, z4 - 1.15, z4 + 1.15));
+  put(g, R.picket({ gateR: true }), fx, 0, z4); put(g, R.mailbox(), fx + pg - 0.3, 0, z4);
+  return g;
+}
+
+// ---------- street: lot connected to a real street network ----------
+const LOT = { x0: -1, x1: 4, z0: -2, z1: 5 };
+const FARM = [[-6, 12], [-5, 12], [-6, 13], [-5, 13]], CROPS = ['carrot', 'cabbage', 'pumpkin', 'tomato'];
+function streetTiles() {
+  const t = [];
+  for (let i = -4; i <= 3; i++) t.push({ i, j: 2, type: 'road' });
+  t.push({ i: 2, j: 1, type: 'road' }, { i: 2, j: 0, type: 'road' }, { i: 2, j: -1, type: 'road' });
+  t.push({ i: -3, j: 3, type: 'dirt' }, { i: -3, j: 4, type: 'dirt' }, { i: -4, j: 4, type: 'dirt' });
+  return t;
+}
+function walker(res, pts, speed = 1.1) {
+  const seg = []; let total = 0;
+  for (let k = 1; k < pts.length; k++) { const l = Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][2] - pts[k - 1][2]); seg.push(l); total += l; }
+  let d = 0, dir = 1, pause = 0;
+  return dt => {
+    if (pause > 0) { pause -= dt; if (pause <= 0) Kit.setAction(res, 'walk'); return; }
+    d += dir * speed * dt;
+    if (d >= total || d <= 0) { d = Math.max(0, Math.min(total, d)); dir *= -1; pause = 1.6; Kit.setAction(res, d > 0 ? 'wave' : 'stand'); }
+    let k = 0, acc = 0; while (k < seg.length - 1 && acc + seg[k] < d) acc += seg[k++];
+    const t = (d - acc) / (seg[k] || 1), a = pts[k], b = pts[k + 1];
+    res.position.set(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
+    const h = Math.atan2((b[0] - a[0]) * dir, (b[2] - a[2]) * dir); let dh = Math.atan2(Math.sin(h - res.rotation.y), Math.cos(h - res.rotation.y));
+    res.rotation.y += dh * Math.min(1, dt * 8);
+  };
+}
+function buildStreet() {
+  Kit.clearActors(); tickers = [];
+  const g = grp('street_scene'), spec = Kit.LEVELS[S.level - 1];
+  const con = R.connectLot(spec, { lot: LOT, style: S.style, fence: S.fence, blocked: [] });
+  const roads = R.buildRoads(streetTiles(), { cuts: con.cuts });
+  g.add(grass(-24, 24, -8, 30));
+  const cx = (LOT.x0 + LOT.x1 + 1) * CELL / 2, cz = (LOT.z0 + LOT.z1 + 1) * CELL / 2, w = (LOT.x1 - LOT.x0 + 1) * CELL, d = (LOT.z1 - LOT.z0 + 1) * CELL;
+  for (let x = LOT.x0; x <= LOT.x1 + 1; x++) g.add(box('grid_line', 0.04, 0.004, d, gridM, x * CELL, 0.002, cz));
+  for (let z = LOT.z0; z <= LOT.z1 + 1; z++) g.add(box('grid_line', w, 0.004, 0.04, gridM, cx, 0.002, z * CELL));
+  roads.forEach(it => place(g, it));
+  Kit.buildPlan(spec).forEach(it => place(g, it));
+  con.items.forEach(it => place(g, it));
+  FARM.forEach(([x, z], k) => put(g, P.farmPlot({ type: CROPS[k], stage: 'mixed', seed: k + 3 }), (x + 0.5) * CELL, 0, (z + 0.5) * CELL));
+  put(g, P.scarecrow(), -7.3, 0, 26.2, -0.4);
+  put(g, Kit.setAction(Kit.resident('frog', { outfit: Kit.CLOTH.mint }), 'water'), -9.9, 0, 23.3, Math.PI);
+  put(g, P.marketStall(), -9, 0, 19.7, Math.PI);
+  put(g, Kit.setAction(Kit.resident('cat', { outfit: Kit.CLOTH.lilac }), 'sell'), -9, 0, 20.6, Math.PI);
+  put(g, P.wagon(), -14.6, R.DIRT_H, 21.2, 0.15);
+  const fox = put(g, Kit.setAction(Kit.resident('fox'), 'walk'), ...con.walk[0]);
+  tickers.push(walker(fox, con.walk));
+  [0, 1].forEach(k => { const c = put(g, car(k), 0, 0, 0); tickers.push(R.makeDriver(roads, c, { seed: k + 7, speed: 2.6 + k * 0.5 })); });
+  return g;
+}
+
+// ---------- town: procedural network + paint editor ----------
+const TW = 9, TH = 7;
+let townTiles = null, townRoads = [];
+function buildTown() {
+  Kit.clearActors(); tickers = [];
+  townTiles ||= R.randomNetwork(S.seed, TW, TH);
+  const g = grp('town_' + S.seed);
+  g.add(grass(-0.5, TW * TILE + 0.5, -0.5, TH * TILE + 0.5));
+  for (let i = 0; i <= TW; i++) g.add(box('grid_line', 0.05, 0.004, TH * TILE, gridM, i * TILE, 0.002, TH * TILE / 2));
+  for (let j = 0; j <= TH; j++) g.add(box('grid_line', TW * TILE, 0.004, 0.05, gridM, TW * TILE / 2, 0.002, j * TILE));
+  townRoads = R.buildRoads(townTiles, { seed: S.seed });
+  townRoads.forEach(it => place(g, it));
+  const n = Math.min(5, Math.ceil(townTiles.length / 6));
+  for (let k = 0; k < n; k++) { const c = put(g, car(k), 0, 0, 0); tickers.push(R.makeDriver(townRoads, c, { seed: S.seed * 13 + k, speed: 2.4 + (k % 3) * 0.5 })); }
+  return g;
+}
+const hover = new THREE.Mesh(new THREE.BoxGeometry(TILE - 0.1, 0.02, TILE - 0.1), new THREE.MeshBasicMaterial({ color: '#fbf7f0', transparent: true, opacity: 0.55, depthWrite: false }));
+hover.name = 'editor_hover'; hover.visible = false; stage._scene.add(hover);
+const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.2);
+function pick(e) {
+  const r = stage.getBoundingClientRect(), p = new THREE.Vector3();
+  ray.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1), stage._camera);
+  if (!ray.ray.intersectPlane(plane, p)) return null;
+  const i = Math.floor(p.x / TILE), j = Math.floor(p.z / TILE);
+  return i >= 0 && j >= 0 && i < TW && j < TH ? { i, j } : null;
+}
+function paint(c) {
+  const k = townTiles.findIndex(t => t.i === c.i && t.j === c.j), t = townTiles[k];
+  if (S.tool === 'erase') { if (k >= 0) townTiles.splice(k, 1); }
+  else if (S.tool === 'round') { if (t && t.type === 'road') t.round = !t.round; else if (!t) townTiles.push({ ...c, type: 'road', round: true }); }
+  else if (t) { t.type = S.tool; if (S.tool === 'dirt') t.round = false; }
+  else townTiles.push({ ...c, type: S.tool });
+  mount(buildTown(), false);
+}
+let down = null;
+stage.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+stage.addEventListener('pointerup', e => {
+  if (S.view !== 'town' || !down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+  const c = pick(e); if (c) paint(c);
+});
+stage.addEventListener('pointermove', e => {
+  if (S.view !== 'town') return;
+  const c = pick(e); hover.visible = !!c;
+  if (c) hover.position.set((c.i + 0.5) * TILE, 0.22, (c.j + 0.5) * TILE);
+});
+stage.addEventListener('pointerleave', () => { hover.visible = false; });
+
+// ---------- UI ----------
+const NOTES = {
+  pieces: 'Road tiles are 6 m (3×3 house cells): two 2 m lanes, kerbs and 0.85 m sidewalks. Footpath pieces are 1 cell. Every piece is picked automatically from its neighbours.',
+  street: 'The footpath is routed from the front door (or porch steps) around the house to the sidewalk, and joins the driveway. The driveway extends to the road and gets a dropped kerb. Level up and the path re-routes.',
+  town: 'Procedural layout: a main street with side streets (some dirt), bends, T-junctions, crossings and roundabouts. Drag to orbit; click a tile to paint. Cars pick a random turn at every tile.',
+};
+const levels = document.getElementById('levels');
+Kit.LEVELS.forEach((L, k) => { const b = document.createElement('button'); b.textContent = k + 1; b.title = L.name; b.dataset.l = k + 1; levels.appendChild(b); });
+function sync() {
+  for (const [id, attr, val] of [['views', 'v', S.view], ['levels', 'l', String(S.level)], ['pstyle', 's', S.style], ['fence', 'f', S.fence ? '1' : '0'], ['tools', 't', S.tool]])
+    document.querySelectorAll(`#${id} button`).forEach(b => b.classList.toggle('on', b.dataset[attr] === val));
+  for (const v of ['pieces', 'street', 'town']) document.getElementById('c-' + v).hidden = S.view !== v;
+  document.getElementById('note').textContent = S.view === 'street' ? `Lv ${S.level} · ${Kit.LEVELS[S.level - 1].name}. ${NOTES.street}` : NOTES[S.view];
+  hover.visible = false; save();
+}
+function show(frame = true) {
+  const g = S.view === 'pieces' ? (Kit.clearActors(), tickers = [], buildPieces()) : S.view === 'street' ? buildStreet() : buildTown();
+  mount(g, frame); sync();
+  if (frame && S.view !== 'pieces') {
+    const [t, p] = S.view === 'street' ? [[0, 0, 11], [17, 17, 33]] : [[TW * TILE / 2 - 4, 0, TH * TILE / 2], [TW * TILE / 2 + 16, 40, TH * TILE / 2 + 44]];
+    stage._controls.target.set(...t); stage._camera.position.set(...p); stage._camera.near = 0.1; stage._camera.far = 600;
+    stage._camera.updateProjectionMatrix(); stage._controls.update();
+  }
+}
+document.getElementById('views').onclick = e => { const v = e.target.dataset.v; if (v && v !== S.view) { S.view = v; show(true); } };
+levels.onclick = e => { const l = +e.target.dataset.l; if (l) { S.level = l; show(false); } };
+document.getElementById('pstyle').onclick = e => { const s = e.target.dataset.s; if (s) { S.style = s; show(false); } };
+document.getElementById('fence').onclick = e => { const f = e.target.dataset.f; if (f) { S.fence = f === '1'; show(false); } };
+document.getElementById('tools').onclick = e => { const t = e.target.dataset.t; if (t) { S.tool = t; sync(); } };
+document.getElementById('regen').onclick = () => { S.seed = Math.floor(Math.random() * 1e5); townTiles = null; show(false); };
+document.getElementById('clear').onclick = () => { townTiles = []; show(false); };
+show(true);
+
+let last = performance.now();
+(function tick() {
+  const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000), t = now / 1000; last = now;
+  for (const f of tickers) f(dt, t);
+  for (const a of Kit.getActors()) Kit.animate(a, t + a.userData.phase);
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
