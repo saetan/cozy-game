@@ -97,6 +97,14 @@ onFrame(t => {
   selection.update();
 });
 
+// Dev-only cheat for playtesting: dropped from every build (dev server only, not e2e or production).
+if (import.meta.env.DEV) {
+  const add = document.createElement('button');
+  add.id = 'dev-coins'; add.textContent = '+1000 coins'; add.title = 'Dev only: add 1000 coins';
+  add.addEventListener('click', () => { sim.coins += 1000; });
+  document.getElementById('stats')!.append(add);
+}
+
 // Test hooks: only in dev and `vite build --mode e2e`. Vite folds this condition to false in a
 // normal production build, so the block (and the hook names) are dropped from dist/.
 if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {

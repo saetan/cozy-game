@@ -10,6 +10,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f0ea; fon
 #place-bar[hidden], #build-menu[hidden], #tile-bar[hidden], .ui-panel[hidden] { display: none; }
 #build-menu, #speed, #stats { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 #stats span { padding: 0 4px; }
+#coins-chip { display: inline-flex; align-items: center; gap: 5px; }
+.coin-icon { width: 12px; height: 12px; border-radius: 50%; background: #f3d98a; border: 1.5px solid #c9a443; padding: 0 !important; }
+#coins { font-size: 14px; }
 #hud button.active, .ui-panel button.active { background: #a6dcc4; color: inherit; }
 #place-status, #tile-status { min-width: 200px; }
 #game { touch-action: none; }
