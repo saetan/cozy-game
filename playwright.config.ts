@@ -3,6 +3,9 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
+  // CI runners render WebGL in software (SwiftShader) on 2 vCPUs: run serially with a longer budget
+  workers: process.env.CI ? 1 : undefined,
+  timeout: process.env.CI ? 120_000 : 30_000,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
