@@ -1,7 +1,7 @@
 // Renders sim state. Read-only: never mutates the sim. Objects keyed by id; created on first
 // sight, updated in place, removed when gone.
 import * as THREE from 'three';
-import { CELL, P, animate, board, grp, resident, setAction, type Species } from '../kit/index.js';
+import { CELL, P, animate, animateMarker, board, grp, resident, setAction, type Species } from '../kit/index.js';
 import type { SimState, Building, BuildingType, Resident, VehicleKind } from '../sim/state';
 import { accessCell } from '../systems/pathfinding';
 import { VEHICLES, isUnlocked } from '../sim/vehicles';
@@ -9,7 +9,7 @@ import { residentPositionAt, cellCentre } from '../sim/position';
 import { createBuildingObject, crateRow, footprintSize, setMarketLevel } from './buildingView';
 import { poseFootprint, setHouseLevel, setHousePose } from './houseView';
 import { createTileObject } from './tileView';
-import { facingAngle, kitAction, lerpAngle, plotKitStage } from './mapping';
+import { facingAngle, kitAction, lerpAngle, plotKitStage, plotThirsty } from './mapping';
 
 const MAX_STOCK_CRATES = 6;
 
@@ -48,17 +48,18 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
     if (b.type === 'house') setHouseLevel(v.obj, b.level, now);
     if (b.type === 'farmPlot') {
       const crop = (b.plotState === 'empty' ? b.crop : b.growCrop ?? b.crop) ?? 'carrot';
-      const st = plotKitStage(b.plotState), key = `${st}|${crop}`;
+      const st = plotKitStage(b.plotState), thirsty = plotThirsty(b.plotState), key = `${st}|${crop}|${thirsty}`;
       if (key !== v.stage) {
         v.stage = key;
         if (v.mesh) v.obj.remove(v.mesh);
         // soil-only plot when empty: the kit has no empty stage, so hide the crops by using a bare plot
-        const plot = P.farmPlot({ type: crop, stage: st ?? 0, seed: b.id });
+        const plot = P.farmPlot({ type: crop, stage: st ?? 0, thirsty, seed: b.id });
         if (st === null) plot.traverse(o => { if (o.name.startsWith('crop')) o.visible = false; });
         plot.position.set(CELL / 2, 0, CELL / 2);
         plot.traverse(o => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = (o as THREE.Mesh).receiveShadow = true; });
         v.mesh = plot; v.obj.add(plot);
       }
+      if (thirsty && v.mesh) animateMarker(v.mesh, now);
       const n = b.crates ?? 0, ck = b.crateCrop ?? b.crop ?? 'carrot', key2 = `${n}|${ck}`;
       if (key2 !== v.crates) {
         v.crates = key2;
@@ -101,7 +102,8 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
       if (ride) { board(ride as THREE.Group, v.obj); v.obj.position.set(0, 0, 0); v.obj.rotation.y = 0; v.action = RIDE_POSE[r.vehicle!]; }
       v.ride = ride;
     }
-    const act = r.vehicle && ride ? RIDE_POSE[r.vehicle] : kitAction(r.task);
+    const jobKind = r.jobId !== null ? sim.jobs.get(r.jobId)?.kind : undefined;
+    const act = r.vehicle && ride ? RIDE_POSE[r.vehicle] : kitAction(r.task, jobKind, t);
     if (act !== v.action) { setAction(v.obj, act); v.action = act; }
     let target = facingAngle(pos.x - v.x, pos.z - v.z);
     if (target === null && r.task && r.task.action !== 'stand' && r.task.action !== 'walk' && r.jobId !== null) {
@@ -181,5 +183,26 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
   }
   /** Rendered plan-piece keys of a house (tests). */
   const housePieceKeys = (id: number): string[] => (bviews.get(id)?.obj.children ?? []).map(o => String(o.userData.key));
-  return { sync, cellCentre, pick, residentPosition, housePieceKeys };
+  /** What the scene draws for a plot, read back from the Object3D tree (tests). */
+  function plotView(id: number) {
+    const m = bviews.get(id)?.mesh;
+    if (!m) return null;
+    let marker = false, stage: number | null = null, crop: string | null = null;
+    m.traverse(o => {
+      if (o.name === 'marker_water') marker = true;
+      const c = /^crop_(\w+?)_s(\d)/.exec(o.name);
+      if (c && o.visible) { stage = Number(c[2]); crop = c[1]; }
+    });
+    return { thirsty: m.name.endsWith('_thirsty'), marker, stage, crop };
+  }
+  /** The kit action, hand props and visible particle count of a resident (tests). */
+  function residentView(id: number) {
+    const v = rviews.get(id);
+    if (!v) return null;
+    const parts = v.obj.userData.parts as { prop?: THREE.Object3D | null; fx?: THREE.Object3D | null };
+    let fxVisible = 0;
+    parts.fx?.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible) fxVisible++; });
+    return { action: v.obj.userData.action as string, props: parts.prop ? [parts.prop.name] : [], fxVisible };
+  }
+  return { sync, plotView, residentView, cellCentre, pick, residentPosition, housePieceKeys };
 }

@@ -18,6 +18,7 @@ import { createSaveMenu } from './ui/saveMenu';
 import { dayOf, timeOfDay } from './sim/clock';
 import { CELL } from './kit/index.js';
 import { advance } from './sim/sim';
+import { peekEvent } from './sim/events';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const { scene, camera, controls, setPaintMode, onFrame } = createScene(canvas);
@@ -125,6 +126,28 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
     housePieceKeys: (id: number) => view.housePieceKeys(id),
     /** Number of scene objects with this name (e.g. selection ghost cells). */
     countNamed(name: string) { let n = 0; scene.traverse(o => { if (o.name === name) n++; }); return n; },
+    /** Steps the sim event by event until pred(sim) holds (checked before the first step too), then redraws once. Returns the sim time. */
+    runUntil(pred: (s: typeof sim) => boolean, maxSimSeconds = 3 * 1200) {
+      const limit = sim.t + maxSimSeconds;
+      while (!pred(sim)) {
+        const e = peekEvent(sim.queue);
+        if (!e || e.time > limit) throw new Error(`runUntil: timed out after ${maxSimSeconds} sim seconds`);
+        advance(sim, Math.max(0, e.time - sim.t));
+      }
+      view.sync(performance.now() / 1000);
+      return sim.t;
+    },
+    /** What the scene draws for a plot: { thirsty, marker, stage, crop }. */
+    plotView: (id: number) => view.plotView(id),
+    /** A resident's kit action, hand props and visible particle meshes. */
+    residentView: (id: number) => view.residentView(id),
+    /** Moves the camera to `distance` metres from a cell, keeping the view angle. */
+    closeUp(x: number, z: number, distance: number) {
+      centreOn((x + 0.5) * CELL, (z + 0.5) * CELL);
+      const d = camera.position.clone().sub(controls.target).normalize().multiplyScalar(distance);
+      camera.position.copy(controls.target).add(d);
+      controls.update();
+    },
     /** Slides the camera focus to a cell. */
     centreOnCell: (x: number, z: number) => centreOn((x + 0.5) * CELL, (z + 0.5) * CELL),
     /** Projects a cell centre to page CSS pixels. */
