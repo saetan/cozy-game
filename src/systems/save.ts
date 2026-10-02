@@ -6,7 +6,7 @@ import { createEventQueue, type QueuedEvent } from '../sim/events';
 import type { Building, Job, LogEntry, Resident, SimState, Stats, TileKind } from '../sim/state';
 import type { WorldConfig } from '../sim/world';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface SimData {
   t: number; rng: number; coins: number; unlockedCrops: string[]; chunksBought: number; stats: Stats; nextJobId: number; nextResidentId: number; dispatchPending: boolean;
@@ -48,7 +48,13 @@ function v1ToV2(data: SaveData): SaveData {
   }
   return { ...data, version: 2, sim };
 }
-const MIGRATIONS: Record<number, (d: SaveData) => SaveData> = { 1: v1ToV2 };
+/** v2 -> v3: residents carry a vehicle claim (none yet); decor is just new building types. */
+function v2ToV3(data: SaveData): SaveData {
+  const sim = JSON.parse(JSON.stringify(data.sim)) as SimData;
+  for (const r of sim.residents) r.vehicle = null;
+  return { ...data, version: 3, sim };
+}
+const MIGRATIONS: Record<number, (d: SaveData) => SaveData> = { 1: v1ToV2, 2: v2ToV3 };
 
 export function migrate(data: SaveData): SaveData {
   let d = data;

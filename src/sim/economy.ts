@@ -1,12 +1,14 @@
 // Resident behaviour and the farm/haul/sell economy. Event-driven: one event per task end.
 import balance from '../data/balance.json';
-import { accessCell, findPath, travelTime } from '../systems/pathfinding';
+import { accessCell, travelTime } from '../systems/pathfinding';
 import { isWorkHours, nextWorkEnd, nextWorkStart } from './clock';
 import { pushEvent, type SimEvent } from './events';
 import { cropInfo, nextSale, stockTotal } from './crops';
 import { claimJob, completeJob, market, pickJob, ROLE_OF, syncMarket, syncPlot } from './jobs';
 import { carryCapacity, traitSpeed, workDelay } from './traits';
-import type { Building, Cell, Job, Resident, SimState, Task } from './state';
+import { growthMultiplier } from './decor';
+import { freeVehicles, planLeg, vehicleInfo } from './vehicles';
+import type { Building, Cell, Job, Resident, SimState, Task, VehicleKind } from './state';
 
 type Op = { at: 'plot' | 'market'; action: Task['action']; time: keyof typeof balance.times; effect: string };
 const PLANS: Record<Job['kind'], Op[]> = {
@@ -25,11 +27,13 @@ function startTask(sim: SimState, r: Resident, task: Task): void {
 function stand(sim: SimState, r: Resident, kind: Task['kind'], until: number): void {
   startTask(sim, r, { kind, action: 'stand', start: sim.t, end: until });
 }
-/** Begin walking to a cell; false if unreachable, 'here' if already there. */
-function walk(sim: SimState, r: Resident, to: Cell, kind: Task['kind'], action: Task['action']): boolean | 'here' {
+/** Begin walking to a cell (by the fastest free vehicle, or `prefer`); false if unreachable, 'here' if already there.
+ *  The vehicle is claimed until the leg ends. */
+function walk(sim: SimState, r: Resident, to: Cell, kind: Task['kind'], action: Task['action'], prefer?: VehicleKind): boolean | 'here' {
   if (r.cell[0] === to[0] && r.cell[1] === to[1]) return 'here';
-  const p = findPath(sim.world, sim.tiles, r.cell, to);
+  const p = planLeg(sim, r, r.cell, to, prefer);
   if (!p) return false;
+  r.vehicle = p.vehicle;
   startTask(sim, r, { kind, action, path: p.cells, cum: p.cum, start: sim.t, end: sim.t + travelTime(p.cost) });
   return true;
 }
@@ -60,7 +64,8 @@ function runJob(sim: SimState, r: Resident): void {
     if (!op) { completeJob(sim, r); finishSync(sim, job); step(sim, r); return; }
     const b = op.at === 'plot' ? sim.buildings.get(job.targetId) : market(sim);
     const to = b && accessCell(sim.world, b.placement);
-    const w = to ? walk(sim, r, to, 'job', r.carrying ? 'carry' : 'walk') : false;
+    // a hauler with several crates takes the wagon when it is free
+    const w = to ? walk(sim, r, to, 'job', r.carrying ? 'carry' : 'walk', r.carrying > 1 ? 'wagon' : undefined) : false;
     if (w === true) return;
     if (w === false) { abort(sim, r, job); return; }
     // selling is open-ended, so it stops at work end instead of running all night
@@ -95,19 +100,20 @@ function applyEffect(sim: SimState, r: Resident, job: Job, effect: string): void
     case 'plant': {
       const crop = cropInfo(plot!.crop ?? balance.defaultCrop);
       plot!.plotState = 'growing'; plot!.growCrop = plot!.crop ?? balance.defaultCrop;
-      pushEvent(sim.queue, sim.t + crop.growTime * balance.waterFraction, { kind: 'plot', plotId: plot!.id, stage: 'thirsty' });
+      pushEvent(sim.queue, sim.t + crop.growTime * balance.waterFraction / growthMultiplier(sim, plot!), { kind: 'plot', plotId: plot!.id, stage: 'thirsty' });
       break;
     }
     case 'water': {
       const crop = cropInfo(plot!.growCrop ?? plot!.crop ?? balance.defaultCrop);
       plot!.plotState = 'watered';
-      pushEvent(sim.queue, sim.t + crop.growTime * (1 - balance.waterFraction), { kind: 'plot', plotId: plot!.id, stage: 'ripe' });
+      pushEvent(sim.queue, sim.t + crop.growTime * (1 - balance.waterFraction) / growthMultiplier(sim, plot!), { kind: 'plot', plotId: plot!.id, stage: 'ripe' });
       break;
     }
     case 'harvest':
       plot!.plotState = 'empty'; plot!.crateCrop = plot!.growCrop ?? plot!.crop; plot!.crates = (plot!.crates ?? 0) + 1; sim.stats.harvested++; break;
     case 'pickup': {
-      const n = 1 + pickupExtra(sim, plot!, job, carryCapacity(r) - 1);
+      const wagon = freeVehicles(sim, r).includes('wagon') ? vehicleInfo('wagon').carry! : 1; // capacity: trait or wagon, not both
+      const n = 1 + pickupExtra(sim, plot!, job, Math.max(carryCapacity(r), wagon) - 1);
       plot!.crates = (plot!.crates ?? 0) - n; job.pickedUp = true; r.carrying = n; r.carryingCrop = plot!.crateCrop ?? plot!.crop; break;
     }
     case 'drop': {
@@ -136,7 +142,7 @@ function pickupExtra(sim: SimState, plot: Building, own: Job, room: number): num
 
 function onResidentEvent(sim: SimState, r: Resident): void {
   const done = r.task;
-  if (done?.path) r.cell = done.path[done.path.length - 1];
+  if (done?.path) { r.cell = done.path[done.path.length - 1]; r.vehicle = null; }
   r.task = null;
   if (done?.kind === 'job' && !done.path && r.jobId !== null) {
     // a work task finished (carry-walks have a path and are handled above)

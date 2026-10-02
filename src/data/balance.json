@@ -5,6 +5,44 @@
   "startTimeOfDay": 0.25,
   "walkSpeed": 2,
   "pathSpeedMultiplier": 1.5,
+  "walking": {
+    "speed": {
+      "grass": 2,
+      "path": 3,
+      "road": 3
+    }
+  },
+  "vehicles": {
+    "bicycle": {
+      "houseLevel": 2,
+      "speed": {
+        "grass": 2,
+        "path": 3.5,
+        "road": 4.5
+      }
+    },
+    "wagon": {
+      "houseLevel": 3,
+      "carry": 3,
+      "speed": {
+        "grass": 2,
+        "path": 2.5,
+        "road": 3
+      }
+    },
+    "car": {
+      "houseLevel": 4,
+      "speed": {
+        "grass": 2,
+        "path": 3.5,
+        "road": 8
+      }
+    }
+  },
+  "scarecrow": {
+    "radius": 2,
+    "growthMultiplier": 1.1
+  },
   "specialistMultiplier": 1.5,
   "maxCrates": 3,
   "waterFraction": 0.5,
@@ -46,6 +84,24 @@
   "defaultCrop": "carrot",
   "footprints": {
     "farmPlot": [
+      [
+        0,
+        0
+      ]
+    ],
+    "shrub": [
+      [
+        0,
+        0
+      ]
+    ],
+    "fence": [
+      [
+        0,
+        0
+      ]
+    ],
+    "scarecrow": [
       [
         0,
         0
@@ -108,6 +164,15 @@
     },
     "road": {
       "coins": 2
+    },
+    "shrub": {
+      "coins": 5
+    },
+    "fence": {
+      "coins": 3
+    },
+    "scarecrow": {
+      "coins": 40
     }
   },
   "houseLevelCosts": [

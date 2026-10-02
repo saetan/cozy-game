@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { CELL, P, grp } from '../kit/index.js';
 import balance from '../data/balance.json';
 import type { BuildingType } from '../sim/state';
+import { isDecor } from '../sim/decor';
 import { levelSpec } from '../sim/levels';
 import { createHouseObject, popIn } from './houseView';
 
@@ -55,7 +56,8 @@ export function createBuildingObject(type: BuildingType, ghostMat?: THREE.Materi
     else setMarketLevel(g, level, now, animateIn);
     return g;
   }
-  g.add(centred(type, P.farmPlot({ stage: 2 })));
+  if (isDecor(type)) g.add(centred(type, P[type]())); // kit shrub / fence / scarecrow
+  else g.add(centred(type, P.farmPlot({ stage: 2 })));
   if (ghostMat) ghostify(g, ghostMat); else shadows(g);
   return g;
 }

@@ -20,7 +20,7 @@ export function createResident(sim: SimState, home: Building, o: { name?: string
   const name = o.name ?? pickName(sim);
   const ids = Object.keys(balance.traits) as TraitId[];
   const trait = o.trait ?? ids[randInt(sim, ids.length)];
-  const r: Resident = { id, name, species, trait, homeId: home.id, role: null, cell, task: null, token: 0, jobId: null, stage: 0, carrying: 0 };
+  const r: Resident = { id, name, species, trait, homeId: home.id, role: null, cell, task: null, token: 0, vehicle: null, jobId: null, stage: 0, carrying: 0 };
   sim.residents.set(id, r);
   step(sim, r);
   return r;

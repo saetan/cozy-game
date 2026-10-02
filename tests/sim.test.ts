@@ -146,7 +146,7 @@ describe('specialist speed', () => {
 
 describe('residentPositionAt', () => {
   const r = (): Resident => ({
-    id: 1, name: 'a', species: 'cat', trait: 'sturdy', homeId: 1, role: null, cell: [0, 0], token: 0, jobId: null, stage: 0, carrying: 0,
+    id: 1, name: 'a', species: 'cat', trait: 'sturdy', homeId: 1, role: null, cell: [0, 0], token: 0, jobId: null, stage: 0, carrying: 0, vehicle: null,
     task: { kind: 'job', action: 'walk', path: [[0, 0], [1, 0], [1, 1]], cum: [0, 0.5, 1], start: 10, end: 20 },
   });
   it('interpolates along the path in metres', () => {

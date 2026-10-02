@@ -1,4 +1,5 @@
-// A* on a 4-neighbour grid. Pure TS. Cost per step = 1 on grass, 1/pathMult on path tiles.
+// A* on a 4-neighbour grid. Pure TS. Cost per step = walkSpeed / speed[surface], i.e. in "grass-walking cells",
+// so walking costs are unchanged and a vehicle's speed table (per surface) just scales them.
 import balance from '../data/balance.json';
 import { MinHeap } from '../sim/heap';
 import { cellKey, isFree, isUnlocked, type World } from '../sim/world';
@@ -7,13 +8,20 @@ import { rotatedCells, type Placement } from './placement';
 export const CELL = 2; // metres per cell (kit-independent copy)
 export type Cell = [number, number];
 export interface PathResult { cells: Cell[]; cost: number; cum: number[] }
+/** Metres per second by surface ('grass' is the default; add a surface by adding a key here and a TileKind). */
+export type SpeedTable = Readonly<Record<string, number>>;
+export type TileLookup = { has(key: string): boolean; get?(key: string): string | undefined };
 
-const PATH_COST = 1 / balance.pathSpeedMultiplier;
+export const WALKING: SpeedTable = balance.walking.speed;
+const REF_SPEED = balance.walkSpeed;
+const surfaceOf = (tiles: TileLookup, k: string): string => tiles.get?.(k) ?? (tiles.has(k) ? 'path' : 'grass');
 const DIRS: Cell[] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-export function findPath(w: World, paths: { has(key: string): boolean }, from: Cell, to: Cell): PathResult | null {
+export function findPath(w: World, tiles: TileLookup, from: Cell, to: Cell, speeds: SpeedTable = WALKING): PathResult | null {
   if (!isUnlocked(w, to[0], to[1]) || (!isFree(w, to[0], to[1]) && !(from[0] === to[0] && from[1] === to[1]))) return null;
-  const h = (x: number, z: number) => (Math.abs(x - to[0]) + Math.abs(z - to[1])) * PATH_COST;
+  const step = (k: string) => REF_SPEED / (speeds[surfaceOf(tiles, k)] ?? speeds.grass);
+  const hUnit = REF_SPEED / Math.max(...Object.values(speeds)); // admissible: fastest surface everywhere
+  const h = (x: number, z: number) => (Math.abs(x - to[0]) + Math.abs(z - to[1])) * hUnit;
   interface N { x: number; z: number; g: number; f: number; n: number }
   let n = 0;
   const open = new MinHeap<N>((a, b) => a.f < b.f || (a.f === b.f && a.n < b.n));
@@ -33,7 +41,7 @@ export function findPath(w: World, paths: { has(key: string): boolean }, from: C
       cells.reverse();
       const cum = [0]; let acc = 0;
       for (let i = 1; i < cells.length; i++) {
-        acc += paths.has(cellKey(cells[i][0], cells[i][1])) ? PATH_COST : 1;
+        acc += step(cellKey(cells[i][0], cells[i][1]));
         cum.push(acc);
       }
       return { cells, cost: acc, cum: cum.map(v => (acc > 0 ? v / acc : 1)) };
@@ -41,7 +49,7 @@ export function findPath(w: World, paths: { has(key: string): boolean }, from: C
     for (const [dx, dz] of DIRS) {
       const x = c.x + dx, z = c.z + dz;
       if (!isUnlocked(w, x, z) || !isFree(w, x, z)) continue;
-      const k = cellKey(x, z), g = c.g + (paths.has(k) ? PATH_COST : 1);
+      const k = cellKey(x, z), g = c.g + step(k);
       if (g < (best.get(k) ?? Infinity)) {
         best.set(k, g); prev.set(k, ck);
         open.push({ x, z, g, f: g + h(x, z), n: n++ });
@@ -51,8 +59,8 @@ export function findPath(w: World, paths: { has(key: string): boolean }, from: C
   return null;
 }
 
-/** Walking time in seconds for a path cost. */
-export const travelTime = (cost: number): number => (cost * CELL) / balance.walkSpeed;
+/** Seconds for a path cost (cost is in grass-walking cells, whatever the vehicle). */
+export const travelTime = (cost: number): number => (cost * CELL) / REF_SPEED;
 
 /** The free cell in front of a building (local +z rotated by its rotation), else any free neighbour. */
 export function accessCell(w: World, p: Placement): Cell | null {
