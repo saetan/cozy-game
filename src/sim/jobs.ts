@@ -48,11 +48,11 @@ export function jobCost(sim: SimState, r: Resident, job: Job): number | null {
   if (!target) return null;
   const a = accessCell(sim.world, target.placement);
   if (!a) return null;
-  const leg = findPath(sim.world, sim.paths, r.cell, a);
+  const leg = findPath(sim.world, sim.tiles, r.cell, a);
   if (!leg) return null;
   if (job.kind === 'haul') {
     const m = market(sim), b = m && accessCell(sim.world, m.placement);
-    if (!b || !findPath(sim.world, sim.paths, a, b)) return null;
+    if (!b || !findPath(sim.world, sim.tiles, a, b)) return null;
   }
   return leg.cost;
 }

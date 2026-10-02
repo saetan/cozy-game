@@ -1,6 +1,7 @@
 // Sim state: plain data as far as practical (World uses Map/Set; save in M4 will serialise it).
 import { createWorld, type World, type WorldConfig } from './world';
 import type { Placement } from '../systems/placement';
+import balance from '../data/balance.json';
 import { createEventQueue, type EventQueue } from './events';
 
 export type BuildingType = 'house' | 'farmPlot' | 'market';
@@ -8,6 +9,8 @@ export type Role = 'farmer' | 'hauler' | 'seller';
 export type JobKind = 'plant' | 'water' | 'harvest' | 'haul' | 'sell';
 export type PlotState = 'empty' | 'growing' | 'thirsty' | 'watered' | 'ripe';
 export type Cell = [number, number];
+export type TileKind = 'path' | 'road';
+export type TraitId = keyof typeof balance.traits;
 
 export interface Building {
   id: number; type: BuildingType; placement: Placement;
@@ -22,16 +25,20 @@ export interface Task {
   start: number; end: number;
 }
 export interface Resident {
-  id: number; name: string; species: string; homeId: number; role: Role | null;
+  id: number; name: string; species: string; trait: TraitId; homeId: number; role: Role | null;
   cell: Cell; task: Task | null; token: number;
   jobId: number | null; stage: number; carrying: number;
 }
+/** Append-only, plain-data event log (UI notifications read it by index; M4's away summary reuses it). */
+export type LogEntry =
+  | { t: number; kind: 'arrival'; residentId: number; houseId: number }
+  | { t: number; kind: 'levelUp'; houseId: number; level: number };
 export interface Job { id: number; kind: JobKind; targetId: number; claimedBy: number | null; pickedUp: boolean }
 export interface Stats { harvested: number; delivered: number; sold: number; earned: number }
 
 export interface SimState {
   t: number; rng: number; world: World;
-  paths: Set<string>;
+  tiles: Map<string, TileKind>;   // cell key -> tile (walking speed bonus; roads later gate vehicles)
   buildings: Map<number, Building>;
   residents: Map<number, Resident>;
   coins: number;
@@ -39,14 +46,15 @@ export interface SimState {
   dispatchPending: boolean;
   queue: EventQueue;
   stats: Stats;
+  log: LogEntry[];
 }
 
 export function newState(seed: number, t0: number, worldConfig?: WorldConfig): SimState {
   return {
-    t: t0, rng: seed >>> 0, world: createWorld(worldConfig), paths: new Set(),
-    buildings: new Map(), residents: new Map(), coins: 0,
+    t: t0, rng: seed >>> 0, world: createWorld(worldConfig), tiles: new Map(),
+    buildings: new Map(), residents: new Map(), coins: balance.startingCoins,
     jobs: new Map(), nextJobId: 1, nextResidentId: 1, dispatchPending: false,
-    queue: createEventQueue(), stats: { harvested: 0, delivered: 0, sold: 0, earned: 0 },
+    queue: createEventQueue(), stats: { harvested: 0, delivered: 0, sold: 0, earned: 0 }, log: [],
   };
 }
 

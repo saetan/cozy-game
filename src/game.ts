@@ -1,8 +1,9 @@
 // Game wiring: owns the sim (single source of truth). No three.js, so it is testable headlessly.
-import balance from './data/balance.json';
-import { advance, apply, createSim, type SimState } from './sim/sim';
+import { advance, apply, createSim, type Command, type CommandResult, type SimState } from './sim/sim';
+import { footprintFor } from './sim/commands';
+import { HOUSE_FRAME } from './sim/houses';
 import type { BuildingType, Cell } from './sim/state';
-import type { Rotation } from './systems/placement';
+import type { Frame, Rotation } from './systems/placement';
 
 export const SEED = 1;
 export const MAX_FRAME_DT = 0.25;
@@ -13,6 +14,8 @@ export interface Game {
   sim: SimState;
   speed: Speed;
   setSpeed(s: Speed): void;
+  /** Sends any command to the sim (the only way UI changes the village). */
+  apply(cmd: Command): CommandResult;
   placeBuilding(type: BuildingType, rotation: Rotation, origin: Cell): { ok: boolean; id?: number; reason?: string };
   /** Advance by a real frame delta (clamped, scaled by speed). */
   frame(realDt: number): void;
@@ -20,23 +23,17 @@ export interface Game {
 
 export function createGame(opts: { demo?: boolean } = {}): Game {
   const sim = createSim({ seed: SEED });
-  let houses = 0;
   const game: Game = {
     sim, speed: 1,
     setSpeed(s) { game.speed = s; },
-    placeBuilding(type, rotation, origin) {
-      const r = apply(sim, { type: 'placeBuilding', building: type, rotation, origin });
-      if (!r.ok) return r;
-      // Temporary until M3 arrivals: the first house comes with one resident.
-      if (type === 'house' && houses++ === 0) apply(sim, { type: 'addResident', homeId: r.id! });
-      return r;
-    },
+    apply: cmd => apply(sim, cmd),
+    placeBuilding: (type, rotation, origin) => apply(sim, { type: 'placeBuilding', building: type, rotation, origin }),
     frame(realDt) {
       const dt = Math.min(Math.max(realDt, 0), MAX_FRAME_DT);
       advance(sim, dt * game.speed);
     },
   };
-  game.placeBuilding('market', 0, [0, 0]);
+  game.placeBuilding('market', 0, [0, 0]); // free (balance.costs.market = 0), pre-placed
   if (opts.demo) {
     game.placeBuilding('house', 0, [-5, 0]);
     game.placeBuilding('farmPlot', 0, [0, 4]);
@@ -46,4 +43,6 @@ export function createGame(opts: { demo?: boolean } = {}): Game {
   return game;
 }
 
-export const footprintOf = (t: BuildingType) => balance.footprints[t] as unknown as ReadonlyArray<readonly [number, number]>;
+export const footprintOf = (t: BuildingType) => footprintFor(t)!;
+/** Fixed rotation frame for building types that grow in place (houses). */
+export const frameOf = (t: BuildingType): Frame | undefined => (t === 'house' ? HOUSE_FRAME : undefined);

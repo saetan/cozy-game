@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildings, cellToScreen, openGame } from './helpers';
+import { buildings, cellToScreen, houseCentre, openGame } from './helpers';
 
 test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 780 } });
 
@@ -17,6 +17,7 @@ test('touch: tap moves the ghost, Place button confirms', async ({ page }) => {
   await page.getByRole('button', { name: 'Place' }).tap();
   const houses = (await buildings(page)).filter(x => x.type === 'house');
   expect(houses).toHaveLength(1);
-  expect(Math.abs(houses[0].placement.origin[0] - 1)).toBeLessThanOrEqual(1);
-  expect(Math.abs(houses[0].placement.origin[1] - 4)).toBeLessThanOrEqual(1);
+  const [cx, cz] = await houseCentre(page, 2);
+  expect(Math.abs(cx - 1)).toBeLessThanOrEqual(1);
+  expect(Math.abs(cz - 4)).toBeLessThanOrEqual(1);
 });

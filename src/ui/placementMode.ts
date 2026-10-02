@@ -3,9 +3,9 @@
 // Place button confirms (no hover-only info anywhere).
 import * as THREE from 'three';
 import { CELL, M } from '../kit/index.js';
-import { canPlace, rotateFootprint, type Footprint, type Rotation } from '../systems/placement';
+import { canPlace, rotatedCells, type Footprint, type Frame, type Rotation } from '../systems/placement';
 import type { World } from '../sim/world';
-import { setHousePose } from '../render/houseView';
+import { poseFootprint, setHousePose } from '../render/houseView';
 import type { BuildingType } from '../sim/state';
 
 const OK = '#7fd48a', BAD = '#e5766f';
@@ -16,6 +16,8 @@ export interface PlacementDeps {
   camera: THREE.Camera;
   world: World;
   footprintOf: (t: BuildingType) => Footprint;
+  /** Fixed rotation frame for types that grow in place (houses). */
+  frameOf?: (t: BuildingType) => Frame | undefined;
   createGhost: (t: BuildingType, mat: THREE.Material) => THREE.Object3D;
   /** Sends the command to the sim; returns true when it was accepted. */
   onPlace: (t: BuildingType, rotation: Rotation, origin: [number, number]) => boolean;
@@ -50,15 +52,16 @@ export function createPlacementMode(d: PlacementDeps) {
   function refresh() {
     for (const [t, g] of ghosts) if (t !== type || !active || !hasCell) g.visible = false;
     if (!active || !hasCell) return;
-    const ghost = ghostFor(type), footprint = d.footprintOf(type);
-    // anchor so the pointer cell sits near the centre of the rotated footprint
-    const cells = rotateFootprint(footprint, rotation);
-    const w = Math.max(...cells.map(c => c[0])) + 1, h = Math.max(...cells.map(c => c[1])) + 1;
-    const ox = cell[0] - Math.floor(w / 2), oz = cell[1] - Math.floor(h / 2);
+    const ghost = ghostFor(type), footprint = d.footprintOf(type), frame = d.frameOf?.(type);
+    // anchor so the pointer cell sits near the centre of the rotated footprint's own cells
+    const cells = rotatedCells(footprint, rotation, frame);
+    const x0 = Math.min(...cells.map(c => c[0])), z0 = Math.min(...cells.map(c => c[1]));
+    const w = Math.max(...cells.map(c => c[0])) + 1 - x0, h = Math.max(...cells.map(c => c[1])) + 1 - z0;
+    const ox = cell[0] - x0 - Math.floor(w / 2), oz = cell[1] - z0 - Math.floor(h / 2);
     anchor = [ox, oz];
-    valid = canPlace(d.world, footprint, rotation, ox, oz);
+    valid = canPlace(d.world, footprint, rotation, ox, oz, frame);
     ghostMat.color.set(valid ? OK : BAD);
-    setHousePose(ghost, footprint, rotation, ox, oz);
+    setHousePose(ghost, poseFootprint({ footprint, frame }), rotation, ox, oz);
     ghost.visible = true;
     status.textContent = valid ? 'Tap Place to build here' : 'Blocked: cells are locked or occupied';
     (q('#confirm') as HTMLButtonElement).disabled = !valid;

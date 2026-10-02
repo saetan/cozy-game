@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { buildings, cellToScreen, openGame } from './helpers';
+import { buildings, cellToScreen, houseCentre, openGame } from './helpers';
 
 const FREE: [number, number] = [3, 3]; // on screen, unlocked, empty ground away from the starter market at (0,0)
 
 test('loads with no console errors and shows the HUD', async ({ page }) => {
   const errors = await openGame(page);
-  await expect(page.locator('#coins')).toHaveText('0');
+  await expect(page.locator('#coins')).toHaveText('80'); // starting coins: 1 house + 2 farm plots
   await expect(page.locator('#day')).toHaveText('Day 1');
   await expect(page.locator('#clock')).toHaveText(/^06:\d\d$/);
   expect(errors).toEqual([]);
@@ -39,9 +39,11 @@ test('build a house: ghost, rotate, blocked cell, place', async ({ page }) => {
   const houses = (await buildings(page)).filter(b => b.type === 'house');
   expect(houses).toHaveLength(1);
   expect(houses[0].placement.rotation).toBe(3);
-  const [ox, oz] = houses[0].placement.origin;
-  expect(Math.abs(ox - FREE[0])).toBeLessThanOrEqual(1);
-  expect(Math.abs(oz - FREE[1])).toBeLessThanOrEqual(1);
+  // the ghost was centred on the pointer cell: the house's cells sit around FREE
+  const [cx, cz] = await houseCentre(page, 2);
+  expect(Math.abs(cx - FREE[0])).toBeLessThanOrEqual(1);
+  expect(Math.abs(cz - FREE[1])).toBeLessThanOrEqual(1);
+  await expect(page.locator('#coins')).toHaveText('30'); // 80 - 50
   await expect(page.locator('#place-bar')).toBeHidden();
 });
 

@@ -17,7 +17,9 @@ function village(seed = 1, residents = 1): SimState {
   apply(sim, { type: 'placeBuilding', building: 'farmPlot', rotation: 0, origin: [0, 6] });
   apply(sim, { type: 'placeBuilding', building: 'farmPlot', rotation: 0, origin: [2, 6] });
   expect(m.ok && h.ok).toBe(true);
-  for (let i = 0; i < residents; i++) apply(sim, { type: 'addResident', homeId: (h as { id: number }).id });
+  // the house already brought one resident (Lv1 arrival); `residents` is the total
+  if (residents === 0) sim.residents.clear();
+  for (let i = 1; i < residents; i++) apply(sim, { type: 'addResident', homeId: (h as { id: number }).id });
   return sim;
 }
 const res = (sim: SimState, id = 1) => sim.residents.get(id)!;
@@ -68,7 +70,7 @@ describe('pathfinding', () => {
   it('access cell is in front of the building and rotates', () => {
     const sim = village();
     const house = sim.buildings.get(2)!;
-    expect(accessCell(sim.world, house.placement)).toEqual([0, 2]);
+    expect(accessCell(sim.world, house.placement)).toEqual([1, 3]); // in front of the Lv1 cells, inside the house frame
   });
 });
 
@@ -83,6 +85,7 @@ describe('job board', () => {
   });
   const bare = () => {
     const sim = village(1, 0);
+    sim.coins += 100;
     // remove auto jobs, post our own
     sim.jobs.clear();
     const h = apply(sim, { type: 'addResident', homeId: 2 }) as { id: number };
@@ -126,7 +129,9 @@ describe('specialist speed', () => {
   const plantDuration = (role: 'farmer' | null) => {
     const sim = createSim({ seed: 1 });
     const h = apply(sim, { type: 'placeBuilding', building: 'house', rotation: 0, origin: [0, 0] }) as { id: number };
-    const id = (apply(sim, { type: 'addResident', homeId: h.id }) as { id: number }).id;
+    const id = 1; // the Lv1 arrival
+    expect(h.id).toBe(1);
+    res(sim, id).trait = 'sturdy'; // neutral for planting
     apply(sim, { type: 'setRole', residentId: id, role });
     apply(sim, { type: 'placeBuilding', building: 'farmPlot', rotation: 0, origin: [0, 4] });
     const r = res(sim, id);
@@ -141,7 +146,7 @@ describe('specialist speed', () => {
 
 describe('residentPositionAt', () => {
   const r = (): Resident => ({
-    id: 1, name: 'a', species: 'cat', homeId: 1, role: null, cell: [0, 0], token: 0, jobId: null, stage: 0, carrying: 0,
+    id: 1, name: 'a', species: 'cat', trait: 'sturdy', homeId: 1, role: null, cell: [0, 0], token: 0, jobId: null, stage: 0, carrying: 0,
     task: { kind: 'job', action: 'walk', path: [[0, 0], [1, 0], [1, 1]], cum: [0, 0.5, 1], start: 10, end: 20 },
   });
   it('interpolates along the path in metres', () => {
@@ -169,8 +174,7 @@ describe('integration', () => {
   it('plots stop at max crates', () => {
     const sim = createSim({ seed: 1 });
     apply(sim, { type: 'placeBuilding', building: 'farmPlot', rotation: 0, origin: [0, 0] });
-    const h = apply(sim, { type: 'placeBuilding', building: 'house', rotation: 0, origin: [4, 0] }) as { id: number };
-    apply(sim, { type: 'addResident', homeId: h.id });
+    apply(sim, { type: 'placeBuilding', building: 'house', rotation: 0, origin: [4, 0] });
     advance(sim, 3 * DAY_LENGTH);
     expect(sim.buildings.get(1)!.crates).toBe(3);
     expect([...sim.jobs.values()].filter(j => j.kind === 'plant' || j.kind === 'harvest')).toEqual([]);

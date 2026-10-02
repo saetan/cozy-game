@@ -2,7 +2,7 @@
 import balance from '../data/balance.json';
 import { MinHeap } from '../sim/heap';
 import { cellKey, isFree, isUnlocked, type World } from '../sim/world';
-import { rotateFootprint, type Placement } from './placement';
+import { rotatedCells, type Placement } from './placement';
 
 export const CELL = 2; // metres per cell (kit-independent copy)
 export type Cell = [number, number];
@@ -11,7 +11,7 @@ export interface PathResult { cells: Cell[]; cost: number; cum: number[] }
 const PATH_COST = 1 / balance.pathSpeedMultiplier;
 const DIRS: Cell[] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-export function findPath(w: World, paths: ReadonlySet<string>, from: Cell, to: Cell): PathResult | null {
+export function findPath(w: World, paths: { has(key: string): boolean }, from: Cell, to: Cell): PathResult | null {
   if (!isUnlocked(w, to[0], to[1]) || (!isFree(w, to[0], to[1]) && !(from[0] === to[0] && from[1] === to[1]))) return null;
   const h = (x: number, z: number) => (Math.abs(x - to[0]) + Math.abs(z - to[1])) * PATH_COST;
   interface N { x: number; z: number; g: number; f: number; n: number }
@@ -56,7 +56,7 @@ export const travelTime = (cost: number): number => (cost * CELL) / balance.walk
 
 /** The free cell in front of a building (local +z rotated by its rotation), else any free neighbour. */
 export function accessCell(w: World, p: Placement): Cell | null {
-  const cells = rotateFootprint(p.footprint, p.rotation).map(([x, z]) => [x + p.origin[0], z + p.origin[1]] as Cell);
+  const cells = rotatedCells(p.footprint, p.rotation, p.frame).map(([x, z]) => [x + p.origin[0], z + p.origin[1]] as Cell);
   const own = new Set(cells.map(([x, z]) => cellKey(x, z)));
   let d: Cell = [0, 1];
   for (let i = 0; i < ((p.rotation % 4) + 4) % 4; i++) d = [-d[1], d[0]];

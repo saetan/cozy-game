@@ -16,8 +16,16 @@
       <button class="speed-btn" data-speed="20">20&times;</button>
     </div>
     <div id="build-menu">
-      <button class="build-btn wide" data-type="house">Build House</button>
-      <button class="build-btn wide" data-type="farmPlot">Build Farm plot</button>
+      <button class="build-btn wide" data-type="house"><span class="label">Build House</span> <span class="cost"></span></button>
+      <button class="build-btn wide" data-type="farmPlot"><span class="label">Build Farm plot</span> <span class="cost"></span></button>
+      <button class="tile-btn wide" data-tool="path"><span class="label">Path</span> <span class="cost"></span></button>
+      <button class="tile-btn wide" data-tool="road"><span class="label">Road</span> <span class="cost"></span></button>
+      <button class="tile-btn wide" data-tool="erase"><span class="label">Erase tile</span></button>
+      <button id="residents-btn" class="wide" aria-expanded="false">Residents</button>
+    </div>
+    <div id="tile-bar" hidden>
+      <span id="tile-status"></span>
+      <button id="tile-done" class="wide primary" title="Done (Esc)">Done (Esc)</button>
     </div>
     <div id="place-bar" hidden>
       <span id="place-status"></span>
@@ -26,6 +34,10 @@
       <button id="cancel" class="wide" title="Cancel (Esc)">Cancel (Esc)</button>
     </div>
   </div>
+  <div id="panel" class="ui-panel" hidden></div>
+  <div id="residents-panel" class="ui-panel" hidden></div>
+  <div id="arrival-card" class="ui-panel" role="dialog" aria-live="polite" hidden></div>
+  <div id="toast" class="ui-panel" role="status" hidden></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

@@ -4,9 +4,11 @@ import * as THREE from 'three';
 import { CELL, P, grp } from '../kit/index.js';
 import balance from '../data/balance.json';
 import type { BuildingType } from '../sim/state';
+import { HOUSE_FRAME } from '../sim/houses';
 import { createHouseObject } from './houseView';
 
-const fpSize = (t: BuildingType) => {
+const fpSize = (t: BuildingType): readonly [number, number] => {
+  if (t === 'house') return HOUSE_FRAME;
   const fp = balance.footprints[t];
   return [Math.max(...fp.map(c => c[0])) + 1, Math.max(...fp.map(c => c[1])) + 1] as const;
 };
@@ -25,8 +27,8 @@ function centred(type: BuildingType, piece: THREE.Object3D) {
   return piece;
 }
 
-export function createBuildingObject(type: BuildingType, ghostMat?: THREE.Material, animateIn = false, now = 0): THREE.Group {
-  if (type === 'house') return createHouseObject(ghostMat, animateIn, now);
+export function createBuildingObject(type: BuildingType, ghostMat?: THREE.Material, animateIn = false, now = 0, level = 1): THREE.Group {
+  if (type === 'house') return createHouseObject(level, ghostMat, animateIn, now);
   const g = grp(type);
   const piece = type === 'farmPlot' ? P.farmPlot({ stage: 2 }) : P.marketStall();
   g.add(centred(type, piece));

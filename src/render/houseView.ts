@@ -1,21 +1,29 @@
-// Renders a placed house: Lv1 plan pieces inside a group rotated about the footprint, with pop-in.
+// Renders a placed house at its current level. Every level is drawn in ONE fixed frame (the bbox of
+// the union of all kit levels, see sim/houses), so levelling up only adds/removes pieces; nothing moves.
+// Level-up diffs the plan by piece key: new keys pop in (back-out), removed keys shrink out.
 import * as THREE from 'three';
-import { CELL, LEVELS, buildPlan, grp } from '../kit/index.js';
-import type { Footprint, Rotation } from '../systems/placement';
-
-/** Cells of the Lv1 house footprint (ground cells of LEVELS[0]). */
-export const HOUSE_FOOTPRINT: Footprint = LEVELS[0].cells.map(([x, z]) => [x, z] as const);
+import { CELL, LEVELS, buildPlan, grp, type PlanPiece } from '../kit/index.js';
+import { HOUSE_FRAME, HOUSE_OFFSET } from '../sim/houses';
+import type { Footprint, Placement, Rotation } from '../systems/placement';
 
 const backOut = (x: number) => { const c = 1.7; return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2; };
-interface Tween { obj: THREE.Object3D; t0: number; dur: number }
+const smoothstep = (x: number) => x * x * (3 - 2 * x);
+interface Tween { obj: THREE.Object3D; t0: number; dur: number; out: boolean }
 const tweens: Tween[] = [];
 export function stepTweens(now: number) {
   for (let i = tweens.length - 1; i >= 0; i--) {
     const w = tweens[i], k = Math.min(1, Math.max(0, (now - w.t0) / w.dur));
-    w.obj.scale.setScalar(Math.max(0.001, backOut(k)));
-    if (k >= 1) tweens.splice(i, 1);
+    w.obj.scale.setScalar(Math.max(0.001, w.out ? 1 - smoothstep(k) : backOut(k)));
+    if (k >= 1) { tweens.splice(i, 1); if (w.out) w.obj.removeFromParent(); }
   }
 }
+/** Tweens still running (tests). */
+export const activeTweens = () => tweens.length;
+
+/** Every cell of the fixed house frame; the footprint used to pose a house group. */
+export const HOUSE_FRAME_FOOTPRINT: Footprint = Array.from({ length: HOUSE_FRAME[0] * HOUSE_FRAME[1] }, (_, i) => [Math.floor(i / HOUSE_FRAME[1]), i % HOUSE_FRAME[1]] as const);
+/** Footprint to pose a placement with: the whole frame for houses, the footprint itself otherwise. */
+export const poseFootprint = (p: Pick<Placement, 'footprint' | 'frame'>): Footprint => (p.frame ? HOUSE_FRAME_FOOTPRINT : p.footprint);
 
 /** Offset (cells) that keeps a footprint rotated by r*90 degrees inside its normalised box.
  *  Rotation about +Y by -r*90 deg maps local (x,z) -> (-z,x) per turn, matching rotateFootprint. */
@@ -27,25 +35,53 @@ export function rotationShift(fp: Footprint, r: number): [number, number] {
   return [-Math.min(...corners.map(c => c[0])), -Math.min(...corners.map(c => c[1]))];
 }
 
-/** Builds the (unplaced) house group; the caller positions it with setHousePose. */
-export function createHouseObject(ghostMat?: THREE.Material, animateIn = false, now = 0) {
-  const g = grp('house');
-  const plan = buildPlan(LEVELS[0], 0, 0).filter(p => !p.key.startsWith('drive:'));
-  const fresh = [...plan].sort((a, b) => a.y - b.y || a.z - b.z);
+/** Plan pieces of a level in frame coordinates. Driveways are separate tiles, so they are excluded. */
+export const housePlan = (level: number): PlanPiece[] =>
+  buildPlan(LEVELS[level - 1], HOUSE_OFFSET[0] * CELL, HOUSE_OFFSET[1] * CELL).filter(p => !p.key.startsWith('drive:'));
+
+interface HouseData { level: number; pieces: Map<string, THREE.Object3D>; ghostMat?: THREE.Material }
+const dataOf = (g: THREE.Object3D) => g.userData.house as HouseData;
+
+function makePiece(p: PlanPiece, ghostMat?: THREE.Material): THREE.Object3D {
+  const o = p.make();
+  o.position.set(p.x, p.y, p.z); o.rotation.y = p.ry; o.userData.key = p.key;
+  o.traverse(m => {
+    if (!(m as THREE.Mesh).isMesh) return;
+    const mesh = m as THREE.Mesh;
+    if (ghostMat) mesh.material = ghostMat; else mesh.castShadow = mesh.receiveShadow = true;
+  });
+  return o;
+}
+
+/** Brings the group to `level`. With `animate`, new pieces pop in bottom-up and removed ones shrink out. */
+function showLevel(g: THREE.Object3D, level: number, animate: boolean, now: number, delay: number) {
+  const d = dataOf(g), plan = housePlan(level), keep = new Set(plan.map(p => p.key));
+  for (const [key, o] of d.pieces) if (!keep.has(key)) {
+    d.pieces.delete(key);
+    if (animate) tweens.push({ obj: o, t0: now, dur: 0.3, out: true }); else o.removeFromParent();
+  }
+  const fresh = plan.filter(p => !d.pieces.has(p.key)).sort((a, b) => a.y - b.y || a.z - b.z);
   const step = Math.min(0.04, 1.6 / Math.max(1, fresh.length));
   fresh.forEach((p, i) => {
-    const o = p.make();
-    o.position.set(p.x, p.y, p.z); o.rotation.y = p.ry;
-    o.traverse(m => {
-      if (!(m as THREE.Mesh).isMesh) return;
-      const mesh = m as THREE.Mesh;
-      if (ghostMat) mesh.material = ghostMat; else mesh.castShadow = mesh.receiveShadow = true;
-    });
-    g.add(o);
-    if (animateIn) { o.scale.setScalar(0.001); tweens.push({ obj: o, t0: now + 0.05 + i * step, dur: 0.45 }); }
+    const o = makePiece(p, d.ghostMat);
+    g.add(o); d.pieces.set(p.key, o);
+    if (animate) { o.scale.setScalar(0.001); tweens.push({ obj: o, t0: now + delay + i * step, dur: 0.45, out: false }); }
   });
+  d.level = level;
+}
+
+/** Builds the (unplaced) house group; the caller positions it with setHousePose. */
+export function createHouseObject(level = 1, ghostMat?: THREE.Material, animateIn = false, now = 0) {
+  const g = grp('house');
+  g.userData.house = { level: 0, pieces: new Map(), ghostMat } satisfies HouseData;
+  showLevel(g, level, animateIn && !ghostMat, now, 0.05);
   return g;
 }
+/** Animated level change (no-op when already at that level). */
+export function setHouseLevel(g: THREE.Object3D, level: number, now: number) {
+  if (dataOf(g).level !== level) showLevel(g, level, true, now, 0.25);
+}
+export const houseLevel = (g: THREE.Object3D): number => dataOf(g).level;
 
 export function setHousePose(g: THREE.Object3D, fp: Footprint, r: Rotation, ox: number, oz: number) {
   const [sx, sz] = rotationShift(fp, r);
