@@ -30,6 +30,8 @@ export function createNotifications(sim: SimState, root: HTMLElement) {
   card.hidden = true; toast.hidden = true;
   return {
     say,
+    /** Treat every log entry so far as announced (after a catch-up whose summary already lists them). */
+    skipSeen() { seen = sim.log.length; },
     update() {
       while (seen < sim.log.length) {
         const e = sim.log[seen++];

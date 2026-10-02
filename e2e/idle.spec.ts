@@ -100,3 +100,26 @@ test('export then import restores the village; a bad file is rejected', async ({
   await page.waitForFunction(() => (window as any).__game?.sim.residents.size === 3);
   expect(await roles(page)).toEqual(['farmer', 'hauler', 'seller']);
 });
+
+test('a backgrounded tab catches up on return, and saves made while hidden keep the hide time', async ({ page }) => {
+  await openGame(page);
+  await buildVillage(page);
+  const setVisible = (v: boolean) => page.evaluate(vis => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (vis ? 'visible' : 'hidden') });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, v);
+  await page.clock.runFor(100);
+  await dismissCards(page); // the build's own arrivals; only catch-up arrivals are under test
+  const t0 = await game<number>(page, 'g => g.sim.t');
+  const hiddenAt = await page.evaluate(() => Date.now());
+  await setVisible(false);
+  await page.clock.setSystemTime(hiddenAt + 2 * HOUR); // no frames run while hidden
+  await e2e(page, 'saveNow'); // e.g. the 30 s timer firing in the background
+  expect(await e2e(page, 'savedAt')).toBeLessThan(hiddenAt + 1000); // stamped at hide time, not 2 h later
+  await setVisible(true);
+  await expect(page.locator('#away-card')).toContainText('While you were away (2h 0m)');
+  await expect(page.locator('#arrival-card')).toBeHidden();
+  const dt = await game<number>(page, 'g => g.sim.t') - t0;
+  expect(dt).toBeGreaterThanOrEqual(2 * 3600);
+  expect(dt).toBeLessThan(2 * 3600 + 60);
+});

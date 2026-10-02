@@ -12,6 +12,7 @@ import { createNotifications } from './ui/notifications';
 import { createBuildMenu } from './ui/buildMenu';
 import { createGame, footprintOf, frameOf, loadGame, saveGame, SPEEDS } from './game';
 import { createIdbStore, serialize } from './systems/save';
+import { catchUp } from './systems/catchup';
 import { showAway, shouldShowAway } from './ui/away';
 import { createSaveMenu } from './ui/saveMenu';
 import { dayOf, timeOfDay } from './sim/clock';
@@ -47,12 +48,20 @@ const notes = createNotifications(sim, document.body);
 const buildMenu = createBuildMenu(sim, document.body);
 if (away && shouldShowAway(away)) showAway(document.body, away, sim);
 
-// Persistence: every 30 s, when the tab is hidden and on pagehide
-let saving = !demo;
-const save = () => { if (saving) saveGame(game, store, Date.now()).catch(() => {}); };
+// Persistence: every 30 s, when the tab is hidden and on pagehide. A hidden tab gets no frames, so the sim is
+// frozen at hiddenAt: saves made while hidden are stamped with it, and on return the gap is caught up like a closed tab.
+let saving = !demo, hiddenAt: number | null = null;
+const save = () => { if (saving) saveGame(game, store, hiddenAt ?? Date.now()).catch(() => {}); };
 if (!demo) {
   setInterval(save, 30000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { hiddenAt ??= Date.now(); save(); return; }
+    if (hiddenAt === null) return;
+    const back = catchUp(sim, hiddenAt, Date.now());
+    hiddenAt = null;
+    notes.skipSeen(); // the summary lists these arrivals; no cards on top of it
+    if (shouldShowAway(back)) showAway(document.body, back, sim);
+  });
   addEventListener('pagehide', save);
   createSaveMenu({ root: document.body, store, snapshot: () => serialize(sim, Date.now(), game.speed), say: notes.say, stopSaving: () => { saving = false; } });
 } else for (const id of ['export-btn', 'import-btn', 'new-btn']) document.getElementById(id)!.hidden = true;
@@ -95,7 +104,9 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
     /** Sim-only fast-forward (no rendering), for tests that must not depend on rAF pacing. */
     advance: (simSeconds: number) => advance(sim, simSeconds),
     /** Writes the save now and resolves when stored. */
-    saveNow: () => saveGame(game, store, Date.now()),
+    saveNow: () => saveGame(game, store, hiddenAt ?? Date.now()),
+    /** savedAt of the stored save (null if none). */
+    savedAt: async () => (await store.load())?.savedAt ?? null,
     /** Rewrites the stored savedAt to `ms` earlier (simulates time away). */
     async backdateSave(ms: number) { const d = await store.load(); if (d) { d.savedAt -= ms; await store.save(d); } },
     /** Test-only coin grant (the sim has no such command, on purpose). */
