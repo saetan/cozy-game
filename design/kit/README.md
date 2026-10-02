@@ -12,6 +12,7 @@ The kit is split into **five kits** (ES modules in `kit/`) plus one interactive 
 |---|---|---|---|
 | House | `house.js` | `House Kit.html` | walls, roofs, porch, chimney, fence, shrub, garage, driveway, **bike stand** placement, `buildPlan`, `LEVELS`, random house |
 | Road | `roads.js` | `Road Kit.html` | road/dirt tiles, junctions, roundabouts, garden paths, `connectLot`, car drivers |
+| Lanes (2 m) | `lanes.js` | `Road Scale Options.html` | 2 m asphalt + dirt lanes, joins, lane mouth onto 6 m streets, `buildLanes` |
 | Character | `characters.js` | `Character Kit.html` | 5 species on one rig, poses, **action registry** (`defineAction`), `setAction` / `animate`, arm IK helpers |
 | Vehicle | `vehicles.js` | `Vehicle Kit.html` | car, bicycle, wagon, **bike stand**, `board` / `alight` / `parkBike` / `unparkBike` / `slotWorld`, `walkBike` action |
 | Farm | `farm.js` | `Farm Kit.html` | plots, crops (+ thirsty), produce, crate, market stall, scarecrow, hoe, can, seed pouch, `carry` / `sell` / `sow` / `hoe` / `water` actions |
@@ -150,6 +151,22 @@ Separate module that imports from `kit.js` (`CELL, M, box, grp, hash, P`). In a 
 
 **Road tokens.** asphalt `#bcb5bb` · centre line `#f3d98a` · zebra `#fbf7f0` · kerb `#d6cfc4` · sidewalk `#ebe4d8` / joint `#d9d1c4` · dirt `#dfc7a3` / rut `#cfb38d` · gravel `#efe5d4` · stepping stone `#ddd5c9` · tuft `#b5d6a0` · mailbox `#9fc3ea`.
 
+## 2 m lanes add-on (`kit/lanes.js`) — chosen road scale: mixed (option C)
+Decision (see `reference/Road Scale Options.html`, which compares A 6 m streets / B 2 m lanes / C mixed on the same village):
+- **Village centre = 6 m streets** (`roads.js`, unchanged). Painted on the 3×3-cell tile snap only. Sidewalks carry residents; two lanes let cars pass.
+- **Outskirts / farms = 2 m dirt lanes** (`lanes.js`), painted one game cell at a time. Asphalt 2 m lanes exist for quiet cul-de-sacs but aren't the main tool (single lane: no passing, no turning at dead ends, reads as a driveway).
+- Surface speeds: street = road speed, dirt lane = dirt speed, `pathTile` = foot only.
+
+**Profile.** Asphalt lane: 1.7 m asphalt + 0.15 m low kerb each side (h 0.10) = 2.0 m; top `ASPH_H`; dead end gets a white stop line. Dirt lane: 1.5 m dirt, ruts ±0.38 m, ragged chunks/tufts to ~1.8 m; top `DIRT_H`. Corners = quarter-annuli centred on the cell corner (centre-line r 1 m). Kit car is ~1.3 m wide (1.4 m over fenders) → ~0.2 m clearance per side.
+
+**Pieces.** `laneTile({ conn, seed })`, `dirtLaneTile({ conn, seed })` with `conn[N|E|S|W] = 'road' | 'dirt' | 'street'` → dead end · straight · corner · T · cross. A `'dirt'` side on an asphalt lane = **join** (kerbs run on, dirt spill); a `'road'` side on a dirt lane widens the arm to 1.7 m. `'street'` = **lane mouth** (arm flares to 2 m). `laneMouthSpill()` lies on the street's dropped sidewalk (pivot on the shared edge, authored for S).
+
+**Builder.** `buildLanes(cells, { streets, ox, oz, seed })`, `cells = [{ x, z, type: 'road'|'dirt' }]` on the 2 m grid, `streets` = the 6 m tiles (`[{ i, j }]`). A lane cell whose neighbour lies inside a street tile gets `conn = 'street'` and is returned in `cuts`. Returns `{ items, cuts }`; items match `buildRoads` (`key, make, x, y, z, ry, cell, conn`). Pass the cuts to `buildRoads(tiles, { cuts: [...lotCuts, ...laneCuts] })` so the street drops its kerb — same mechanism as driveways.
+
+**Game rules to add.** A lane may only touch a street on a flat sidewalk edge (not a junction arm or a bend's outer corner); prefer the middle edge cell of the tile. Lanes don't auto-connect to driveways. Vehicles on lanes: one at a time per segment, or wait at the lane mouth; turn around only at a lane T/cross or a street.
+
+**Reference.** `reference/Road Scale Options.html` (+ `road-scale-scenes.js`): three options side by side with one shared camera, land-use stats and a sheet of all 2 m pieces.
+
 ## Farming (`kit/farm.js`)
 Reference: `reference/Farm Kit.html` (young vs thirsty crops, watered vs thirsty plot, one resident per animation, full sow → hoe → water sequence; speed buttons test cut-offs).
 
@@ -172,6 +189,7 @@ Reference: `reference/Farm Kit.html` (young vs thirsty crops, watered vs thirsty
 
 ## Files
 - `kit/core.js`, `kit/characters.js`, `kit/vehicles.js`, `kit/farm.js`, `kit/house.js`, `kit/roads.js` — the kits (import `three` via import map or bundler)
+- `kit/lanes.js` — 2 m lanes add-on (imports `roads.js`)
 - `kit/kit.js` — barrel re-export (+ `actorScene` demo helper)
 - `kit/example.html` — integration example (open via a local web server)
 - `reference/House Kit.html`, `Road Kit.html`, `Character Kit.html`, `Vehicle Kit.html`, `Farm Kit.html` — one interactive reference per kit
