@@ -4,13 +4,14 @@ import type { Placement } from '../systems/placement';
 import balance from '../data/balance.json';
 import { createEventQueue, type EventQueue } from './events';
 
-export type BuildingType = 'house' | 'farmPlot' | 'market';
+export type BuildingType = 'house' | 'farmPlot' | 'market' | 'shrub' | 'fence' | 'scarecrow';
 export type Role = 'farmer' | 'hauler' | 'seller';
 export type JobKind = 'plant' | 'water' | 'harvest' | 'haul' | 'sell';
 export type PlotState = 'empty' | 'growing' | 'thirsty' | 'watered' | 'ripe';
 export type Cell = [number, number];
 export type TileKind = 'path' | 'road';
 export type TraitId = keyof typeof balance.traits;
+export type VehicleKind = keyof typeof balance.vehicles;
 
 export interface Building {
   id: number; type: BuildingType; placement: Placement;
@@ -28,6 +29,7 @@ export interface Task {
 export interface Resident {
   id: number; name: string; species: string; trait: TraitId; homeId: number; role: Role | null;
   cell: Cell; task: Task | null; token: number;
+  vehicle: VehicleKind | null;                     // claimed from the home house for the current walk leg
   jobId: number | null; stage: number; carrying: number; carryingCrop?: string;
 }
 /** Append-only, plain-data event log (UI notifications read it by index; M4's away summary reuses it). */
@@ -39,7 +41,7 @@ export interface Stats { harvested: number; delivered: number; sold: number; ear
 
 export interface SimState {
   t: number; rng: number; world: World;
-  tiles: Map<string, TileKind>;   // cell key -> tile (walking speed bonus; roads later gate vehicles)
+  tiles: Map<string, TileKind>;   // cell key -> tile; its kind is the surface that picks the speed
   buildings: Map<number, Building>;
   residents: Map<number, Resident>;
   coins: number;
