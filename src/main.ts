@@ -10,14 +10,19 @@ import { createTileTool } from './ui/tileTool';
 import { createSelection } from './ui/selection';
 import { createNotifications } from './ui/notifications';
 import { createBuildMenu } from './ui/buildMenu';
-import { createGame, footprintOf, frameOf, SPEEDS } from './game';
+import { createGame, footprintOf, frameOf, loadGame, saveGame, SPEEDS } from './game';
+import { createIdbStore, serialize } from './systems/save';
+import { showAway, shouldShowAway } from './ui/away';
+import { createSaveMenu } from './ui/saveMenu';
 import { dayOf, timeOfDay } from './sim/clock';
 import { CELL } from './kit/index.js';
 import { advance } from './sim/sim';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const { scene, camera, controls, setPaintMode, onFrame } = createScene(canvas);
-const game = createGame({ demo: new URLSearchParams(location.search).has('demo') });
+const demo = new URLSearchParams(location.search).has('demo'); // demo: always fresh, never loads or saves
+const store = createIdbStore();
+const { game, away } = demo ? { game: createGame({ demo }), away: null } : await loadGame(store, Date.now());
 const { sim } = game;
 scene.add(createChunkView(sim.world).root);
 const view = createSimView(scene, sim);
@@ -40,6 +45,17 @@ const selection = createSelection({
 document.querySelectorAll('.build-btn').forEach(b => b.addEventListener('click', () => selection.clear()));
 const notes = createNotifications(sim, document.body);
 const buildMenu = createBuildMenu(sim, document.body);
+if (away && shouldShowAway(away)) showAway(document.body, away, sim);
+
+// Persistence: every 30 s, when the tab is hidden and on pagehide
+let saving = !demo;
+const save = () => { if (saving) saveGame(game, store, Date.now()).catch(() => {}); };
+if (!demo) {
+  setInterval(save, 30000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+  addEventListener('pagehide', save);
+  createSaveMenu({ root: document.body, store, snapshot: () => serialize(sim, Date.now(), game.speed), say: notes.say, stopSaving: () => { saving = false; } });
+} else for (const id of ['export-btn', 'import-btn', 'new-btn']) document.getElementById(id)!.hidden = true;
 
 // HUD
 const coinsEl = document.getElementById('coins')!, dayEl = document.getElementById('day')!, clockEl = document.getElementById('clock')!;
@@ -78,6 +94,10 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
   w.__e2e = {
     /** Sim-only fast-forward (no rendering), for tests that must not depend on rAF pacing. */
     advance: (simSeconds: number) => advance(sim, simSeconds),
+    /** Writes the save now and resolves when stored. */
+    saveNow: () => saveGame(game, store, Date.now()),
+    /** Rewrites the stored savedAt to `ms` earlier (simulates time away). */
+    async backdateSave(ms: number) { const d = await store.load(); if (d) { d.savedAt -= ms; await store.save(d); } },
     /** Test-only coin grant (the sim has no such command, on purpose). */
     giveCoins: (n: number) => { sim.coins += n; },
     /** Plan-piece keys currently rendered for a house. */

@@ -29,6 +29,7 @@ export function createNotifications(sim: SimState, root: HTMLElement) {
   }
   card.hidden = true; toast.hidden = true;
   return {
+    say,
     update() {
       while (seen < sim.log.length) {
         const e = sim.log[seen++];

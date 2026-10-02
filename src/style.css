@@ -39,3 +39,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f0ea; fon
 .card-more { color: rgba(58, 54, 50, 0.6); }
 #toast { top: 16px; left: 50%; transform: translateX(-50%); pointer-events: none; }
 .cost { color: rgba(58, 54, 50, 0.65); }
+#away-card { top: 96px; left: 50%; transform: translateX(-50%); width: min(400px, calc(100vw - 32px)); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+#away-card[hidden] { display: none; }
+#away-card ul { margin: 0; padding-left: 18px; }
+#away-card .card-title { font-size: 15px; }

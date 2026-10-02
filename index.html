@@ -22,6 +22,10 @@
       <button class="tile-btn wide" data-tool="road"><span class="label">Road</span> <span class="cost"></span></button>
       <button class="tile-btn wide" data-tool="erase"><span class="label">Erase tile</span></button>
       <button id="residents-btn" class="wide" aria-expanded="false">Residents</button>
+      <button id="export-btn" class="wide">Export</button>
+      <button id="import-btn" class="wide">Import</button>
+      <button id="new-btn" class="wide">New village</button>
+      <input id="import-file" type="file" accept="application/json,.json" hidden />
     </div>
     <div id="tile-bar" hidden>
       <span id="tile-status"></span>
@@ -37,6 +41,7 @@
   <div id="panel" class="ui-panel" hidden></div>
   <div id="residents-panel" class="ui-panel" hidden></div>
   <div id="arrival-card" class="ui-panel" role="dialog" aria-live="polite" hidden></div>
+  <div id="away-card" class="ui-panel" role="dialog" hidden></div>
   <div id="toast" class="ui-panel" role="status" hidden></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
