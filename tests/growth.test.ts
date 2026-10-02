@@ -199,7 +199,7 @@ describe('traits', () => {
     return r.task!.end - r.task!.start;
   };
   const stockMarket = (sim: SimState) => {
-    const m = sim.buildings.get(2)!; m.stock = 3; syncMarket(sim, m); // posts the sell job and wakes the village
+    const m = sim.buildings.get(2)!; m.stock!.carrot = 3; syncMarket(sim, m); // posts the sell job and wakes the village
   };
   const plant = (sim: SimState) => apply(sim, { type: 'placeBuilding', building: 'farmPlot', rotation: 0, origin: [0, 6] });
 
@@ -236,7 +236,7 @@ describe('traits', () => {
     expect([...sim.jobs.values()].filter(j => j.kind === 'haul' && j.targetId === plot.id)).toHaveLength(1); // only the one being carried
     for (let i = 0; i < 400 && sim.stats.delivered < 2; i++) advance(sim, 0.25);
     expect(sim.stats.delivered).toBe(2);
-    expect(sim.buildings.get(2)!.stock).toBeGreaterThanOrEqual(0);
+    expect(sim.buildings.get(2)!.stock!.carrot).toBeGreaterThanOrEqual(0);
   });
   it('sturdy leaves crates another hauler already claimed', () => {
     const sim = setup('sturdy', 'hauler');

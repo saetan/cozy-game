@@ -25,7 +25,8 @@ const demo = new URLSearchParams(location.search).has('demo'); // demo: always f
 const store = createIdbStore();
 const { game, away } = demo ? { game: createGame({ demo }), away: null } : await loadGame(store, Date.now());
 const { sim } = game;
-scene.add(createChunkView(sim.world).root);
+const chunks = createChunkView(sim.world);
+scene.add(chunks.root);
 const view = createSimView(scene, sim);
 
 const placement = createPlacementMode({
@@ -36,7 +37,7 @@ const placement = createPlacementMode({
 const tiles = createTileTool({ canvas, scene, camera, game, root: document.body, setPaintMode, onStart: () => selection.clear() });
 const selection = createSelection({
   canvas, camera, scene, game, root: document.body,
-  pick: ray => view.pick(ray), residentPosition: id => view.residentPosition(id),
+  pick: ray => view.pick(ray), onLandBought: () => chunks.sync(), residentPosition: id => view.residentPosition(id),
   centreOn(x, z) { // slide the camera so the focus lands on (x, z), keeping the view angle
     const dx = x - controls.target.x, dz = z - controls.target.z;
     controls.target.x += dx; controls.target.z += dz; camera.position.x += dx; camera.position.z += dz;

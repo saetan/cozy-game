@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { CELL, LEVELS, buildPlan, grp, type PlanPiece } from '../kit/index.js';
 import { HOUSE_FRAME, HOUSE_OFFSET } from '../sim/houses';
-import type { Footprint, Placement, Rotation } from '../systems/placement';
+import type { Footprint, Frame, Placement, Rotation } from '../systems/placement';
 
 const backOut = (x: number) => { const c = 1.7; return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2; };
 const smoothstep = (x: number) => x * x * (3 - 2 * x);
@@ -17,13 +17,18 @@ export function stepTweens(now: number) {
     if (k >= 1) { tweens.splice(i, 1); if (w.out) w.obj.removeFromParent(); }
   }
 }
+/** Scale an object in from nothing (shared with the market's new stalls). */
+export function popIn(obj: THREE.Object3D, now: number, delay = 0) {
+  obj.scale.setScalar(0.001); tweens.push({ obj, t0: now + delay, dur: 0.45, out: false });
+}
 /** Tweens still running (tests). */
 export const activeTweens = () => tweens.length;
 
 /** Every cell of the fixed house frame; the footprint used to pose a house group. */
-export const HOUSE_FRAME_FOOTPRINT: Footprint = Array.from({ length: HOUSE_FRAME[0] * HOUSE_FRAME[1] }, (_, i) => [Math.floor(i / HOUSE_FRAME[1]), i % HOUSE_FRAME[1]] as const);
-/** Footprint to pose a placement with: the whole frame for houses, the footprint itself otherwise. */
-export const poseFootprint = (p: Pick<Placement, 'footprint' | 'frame'>): Footprint => (p.frame ? HOUSE_FRAME_FOOTPRINT : p.footprint);
+export const frameFootprint = (f: Frame): Footprint => Array.from({ length: f[0] * f[1] }, (_, i) => [Math.floor(i / f[1]), i % f[1]] as const);
+export const HOUSE_FRAME_FOOTPRINT: Footprint = frameFootprint(HOUSE_FRAME);
+/** Footprint to pose a placement with: the whole frame for growing buildings, the footprint itself otherwise. */
+export const poseFootprint = (p: Pick<Placement, 'footprint' | 'frame'>): Footprint => (p.frame ? frameFootprint(p.frame) : p.footprint);
 
 /** Offset (cells) that keeps a footprint rotated by r*90 degrees inside its normalised box.
  *  Rotation about +Y by -r*90 deg maps local (x,z) -> (-z,x) per turn, matching rotateFootprint. */

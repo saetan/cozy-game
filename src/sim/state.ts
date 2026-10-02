@@ -15,8 +15,9 @@ export type TraitId = keyof typeof balance.traits;
 export interface Building {
   id: number; type: BuildingType; placement: Placement;
   level: number;                                   // house/market level
-  crop?: string; plotState?: PlotState; crates?: number; // farmPlot
-  stock?: number;                                  // market
+  crop?: string; plotState?: PlotState; crates?: number; // farmPlot: crop = chosen for the next planting
+  growCrop?: string; crateCrop?: string;           // farmPlot: crop in the ground / crop of the crates on hand
+  stock?: Record<string, number>;                  // market: crates per crop
 }
 export interface Task {
   kind: 'job' | 'home' | 'idle';
@@ -27,7 +28,7 @@ export interface Task {
 export interface Resident {
   id: number; name: string; species: string; trait: TraitId; homeId: number; role: Role | null;
   cell: Cell; task: Task | null; token: number;
-  jobId: number | null; stage: number; carrying: number;
+  jobId: number | null; stage: number; carrying: number; carryingCrop?: string;
 }
 /** Append-only, plain-data event log (UI notifications read it by index; M4's away summary reuses it). */
 export type LogEntry =
@@ -42,6 +43,7 @@ export interface SimState {
   buildings: Map<number, Building>;
   residents: Map<number, Resident>;
   coins: number;
+  unlockedCrops: string[]; chunksBought: number;
   jobs: Map<number, Job>; nextJobId: number; nextResidentId: number;
   dispatchPending: boolean;
   queue: EventQueue;
@@ -53,6 +55,7 @@ export function newState(seed: number, t0: number, worldConfig?: WorldConfig): S
   return {
     t: t0, rng: seed >>> 0, world: createWorld(worldConfig), tiles: new Map(),
     buildings: new Map(), residents: new Map(), coins: balance.startingCoins,
+    unlockedCrops: [balance.defaultCrop], chunksBought: 0,
     jobs: new Map(), nextJobId: 1, nextResidentId: 1, dispatchPending: false,
     queue: createEventQueue(), stats: { harvested: 0, delivered: 0, sold: 0, earned: 0 }, log: [],
   };

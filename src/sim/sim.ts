@@ -7,7 +7,7 @@ import { DAY_LENGTH } from './clock';
 import type { WorldConfig } from './world';
 
 export { apply } from './commands';
-export { levelUpCheck } from './houses';
+export { levelUpCheck } from './levels';
 export type { Command, CommandResult } from './commands';
 export type { SimState } from './state';
 
@@ -31,7 +31,7 @@ const sortBy = <T>(a: T[], f: (x: T) => string | number) => a.sort((x, y) => (f(
 /** JSON-serialisable view of the whole sim (used for equality in tests). */
 export function snapshot(sim: SimState) {
   return JSON.parse(JSON.stringify({
-    t: sim.t, rng: sim.rng, coins: sim.coins, stats: sim.stats,
+    t: sim.t, rng: sim.rng, coins: sim.coins, unlockedCrops: sim.unlockedCrops, chunksBought: sim.chunksBought, stats: sim.stats,
     nextJobId: sim.nextJobId, nextResidentId: sim.nextResidentId, dispatchPending: sim.dispatchPending,
     world: {
       nextId: sim.world.nextId, unlocked: [...sim.world.unlocked].sort(),

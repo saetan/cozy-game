@@ -1,7 +1,7 @@
 // Game wiring: owns the sim (single source of truth). No three.js, so it is testable headlessly.
 import { advance, apply, createSim, type Command, type CommandResult, type SimState } from './sim/sim';
 import { footprintFor } from './sim/commands';
-import { HOUSE_FRAME } from './sim/houses';
+import { levelSpec } from './sim/levels';
 import type { BuildingType, Cell } from './sim/state';
 import type { Frame, Rotation } from './systems/placement';
 import { catchUp, type AwaySummary } from './systems/catchup';
@@ -47,8 +47,8 @@ export function createGame(opts: { demo?: boolean; sim?: SimState; speed?: Speed
 }
 
 export const footprintOf = (t: BuildingType) => footprintFor(t)!;
-/** Fixed rotation frame for building types that grow in place (houses). */
-export const frameOf = (t: BuildingType): Frame | undefined => (t === 'house' ? HOUSE_FRAME : undefined);
+/** Fixed rotation frame for building types that grow in place (houses, market). */
+export const frameOf = (t: BuildingType): Frame | undefined => levelSpec(t)?.frame;
 
 export const saveGame = (g: Game, store: SaveStore, now: number) => store.save(serialize(g.sim, now, g.speed));
 

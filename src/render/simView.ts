@@ -2,16 +2,16 @@
 // sight, updated in place, removed when gone.
 import * as THREE from 'three';
 import { CELL, P, animate, grp, resident, setAction, type Species } from '../kit/index.js';
-import type { SimState, Building, Resident } from '../sim/state';
+import type { SimState, Building, BuildingType, Resident } from '../sim/state';
 import { residentPositionAt, cellCentre } from '../sim/position';
-import { createBuildingObject, crateRow, footprintSize } from './buildingView';
+import { createBuildingObject, crateRow, footprintSize, setMarketLevel } from './buildingView';
 import { poseFootprint, setHouseLevel, setHousePose } from './houseView';
 import { createTileObject } from './tileView';
 import { facingAngle, kitAction, lerpAngle, plotKitStage } from './mapping';
 
 const MAX_STOCK_CRATES = 6;
 
-interface BView { obj: THREE.Group; stage: string; crates: number; mesh?: THREE.Object3D; crateObj?: THREE.Object3D }
+interface BView { obj: THREE.Group; stage: string; crates: string; mesh?: THREE.Object3D; crateObj?: THREE.Object3D }
 interface RView { obj: THREE.Group; action: string; phase: number; x: number; z: number; yaw: number }
 
 export function createSimView(scene: THREE.Scene, sim: SimState) {
@@ -35,39 +35,42 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
       setHousePose(obj, poseFootprint(p), p.rotation, p.origin[0], p.origin[1]);
       obj.userData.simKind = 'building'; obj.userData.simId = b.id;
       scene.add(obj);
-      v = { obj, stage: '', crates: -1 };
+      v = { obj, stage: '', crates: '' };
       bviews.set(b.id, v);
     }
     if (b.type === 'house') setHouseLevel(v.obj, b.level, now);
     if (b.type === 'farmPlot') {
-      const st = plotKitStage(b.plotState), key = String(st);
+      const crop = (b.plotState === 'empty' ? b.crop : b.growCrop ?? b.crop) ?? 'carrot';
+      const st = plotKitStage(b.plotState), key = `${st}|${crop}`;
       if (key !== v.stage) {
         v.stage = key;
         if (v.mesh) v.obj.remove(v.mesh);
         // soil-only plot when empty: the kit has no empty stage, so hide the crops by using a bare plot
-        const plot = P.farmPlot({ type: b.crop ?? 'carrot', stage: st ?? 0, seed: b.id });
+        const plot = P.farmPlot({ type: crop, stage: st ?? 0, seed: b.id });
         if (st === null) plot.traverse(o => { if (o.name.startsWith('crop')) o.visible = false; });
         plot.position.set(CELL / 2, 0, CELL / 2);
         plot.traverse(o => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = (o as THREE.Mesh).receiveShadow = true; });
         v.mesh = plot; v.obj.add(plot);
       }
-      const n = b.crates ?? 0;
-      if (n !== v.crates) {
-        v.crates = n;
+      const n = b.crates ?? 0, ck = b.crateCrop ?? b.crop ?? 'carrot', key2 = `${n}|${ck}`;
+      if (key2 !== v.crates) {
+        v.crates = key2;
         if (v.crateObj) v.obj.remove(v.crateObj);
-        v.crateObj = crateRow(n, CELL + 0.35, 0.4, 0.55); v.obj.add(v.crateObj);
+        v.crateObj = crateRow(n, CELL + 0.35, 0.4, 0.55, ck); v.obj.add(v.crateObj);
       }
     } else if (b.type === 'market') {
-      const n = Math.min(b.stock ?? 0, MAX_STOCK_CRATES);
-      if (n !== v.crates) {
-        v.crates = n;
+      setMarketLevel(v.obj, b.level, now);
+      const crates = Object.entries(b.stock ?? {}).flatMap(([c, n]) => Array<string>(n).fill(c)).slice(0, MAX_STOCK_CRATES);
+      const key = crates.join(',');
+      if (key !== v.crates) {
+        v.crates = key;
         if (v.crateObj) v.obj.remove(v.crateObj);
         const row = grp('stock');
-        for (let i = 0; i < n; i++) {
-          const c = crateRow(1, 0, 0, 0);
-          c.position.set(0.8 + (i % 3) * 0.8, (i >= 3 ? 0.22 : 0), CELL * 1.5 + 0.6);
-          row.add(c);
-        }
+        crates.forEach((c, i) => {
+          const o = crateRow(1, 0, 0, 0, c);
+          o.position.set(0.8 + (i % 3) * 0.8, (i >= 3 ? 0.22 : 0), CELL * 1.5 + 0.6);
+          row.add(o);
+        });
         v.crateObj = row; v.obj.add(row);
       }
     }
@@ -110,8 +113,8 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
     for (const [k, v] of tviews) if (!sim.tiles.has(k)) { scene.remove(v.obj); tviews.delete(k); }
   }
 
-  /** What is under a pointer ray: a resident (also when tapped near, for touch) or a house. Read-only. */
-  function pick(ray: THREE.Raycaster): { kind: 'resident' | 'house'; id: number } | null {
+  /** What is under a pointer ray: a resident (also when tapped near, for touch) or a building. Read-only. */
+  function pick(ray: THREE.Raycaster): { kind: 'resident' | BuildingType; id: number } | null {
     const roots = [...rviews.values(), ...bviews.values()].map(v => v.obj);
     const hit = ray.intersectObjects(roots, true)[0];
     let o: THREE.Object3D | null = hit?.object ?? null;
@@ -123,7 +126,8 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
       for (const [id, v] of rviews) { const d = (v.x - g.x) ** 2 + (v.z - g.z) ** 2; if (d < bestD) { bestD = d; best = id; } }
       if (best !== null) return { kind: 'resident', id: best };
     }
-    if (o?.userData.simKind === 'building' && sim.buildings.get(o.userData.simId)?.type === 'house') return { kind: 'house', id: o.userData.simId };
+    const hitB = o?.userData.simKind === 'building' ? sim.buildings.get(o.userData.simId) : undefined;
+    if (hitB) return { kind: hitB.type, id: hitB.id };
     return null;
   }
   const residentPosition = (id: number) => { const v = rviews.get(id); return v ? { x: v.x, z: v.z } : null; };
