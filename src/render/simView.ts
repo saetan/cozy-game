@@ -8,7 +8,7 @@ import { VEHICLES, isUnlocked } from '../sim/vehicles';
 import { residentPositionAt, cellCentre } from '../sim/position';
 import { createBuildingObject, crateRow, footprintSize, setMarketLevel } from './buildingView';
 import { poseFootprint, setHouseLevel, setHousePose } from './houseView';
-import { createTileObject } from './tileView';
+import { createRoadView } from './roadView';
 import { facingAngle, kitAction, lerpAngle, plotKitStage, plotThirsty } from './mapping';
 
 const MAX_STOCK_CRATES = 6;
@@ -23,7 +23,7 @@ const PARK: Record<VehicleKind, [number, number, number]> = { bicycle: [-0.55, -
 export function createSimView(scene: THREE.Scene, sim: SimState) {
   const bviews = new Map<number, BView>();
   const rviews = new Map<number, RView>();
-  const tviews = new Map<string, { kind: string; obj: THREE.Group }>();
+  const roads = createRoadView(scene, sim);
   const vviews = new Map<string, THREE.Object3D>(); // `${houseId}:${kind}`: one per unlocked vehicle, parked or ridden
 
   const buildingCentre = (b: Building) => {
@@ -142,18 +142,6 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
     }
   }
 
-  function syncTiles() {
-    for (const [k, kind] of sim.tiles) {
-      const v = tviews.get(k);
-      if (v?.kind === kind) continue;
-      if (v) scene.remove(v.obj);
-      const [x, z] = k.split(',').map(Number), obj = createTileObject(kind);
-      obj.position.set((x + 0.5) * CELL, 0, (z + 0.5) * CELL);
-      scene.add(obj); tviews.set(k, { kind, obj });
-    }
-    for (const [k, v] of tviews) if (!sim.tiles.has(k)) { scene.remove(v.obj); tviews.delete(k); }
-  }
-
   /** What is under a pointer ray: a resident (also when tapped near, for touch) or a building. Read-only. */
   function pick(ray: THREE.Raycaster): { kind: 'resident' | BuildingType; id: number } | null {
     const roots = [...rviews.values(), ...bviews.values()].map(v => v.obj);
@@ -174,7 +162,7 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
   const residentPosition = (id: number) => { const v = rviews.get(id); return v ? { x: v.x, z: v.z } : null; };
 
   function sync(now: number) {
-    syncTiles();
+    roads.sync(now);
     for (const b of sim.buildings.values()) syncBuilding(b, now);
     for (const [id, v] of bviews) if (!sim.buildings.has(id)) { scene.remove(v.obj); bviews.delete(id); }
     syncVehicles();
@@ -204,5 +192,5 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
     parts.fx?.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible) fxVisible++; });
     return { action: v.obj.userData.action as string, props: parts.prop ? [parts.prop.name] : [], fxVisible };
   }
-  return { sync, plotView, residentView, cellCentre, pick, residentPosition, housePieceKeys };
+  return { sync, roadKeys: roads.keys, plotView, residentView, cellCentre, pick, residentPosition, housePieceKeys };
 }

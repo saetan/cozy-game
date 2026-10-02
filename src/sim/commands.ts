@@ -128,43 +128,52 @@ export function apply(sim: SimState, cmd: Command): CommandResult {
     }
     case 'setTile': {
       if (cmd.kind === null) return eraseCells(sim, cmd.cells);
-      const kind = cmd.kind;
-      const cells = cmd.cells.filter(([x, z]) => sim.tiles.get(cellKey(x, z)) !== kind);
-      if (cells.some(([x, z]) => streetAt(sim, x, z))) return fail('blocked: that cell is part of a street');
-      if (!cells.every(([x, z]) => isUnlocked(sim.world, x, z) && isFree(sim.world, x, z))) return fail('some cells blocked or locked');
-      if (isLane(kind)) {
-        const next = new Map(sim.tiles);
-        for (const [x, z] of cells) next.set(cellKey(x, z), kind);
-        const why = laneJoinProblem(sim.streets, next);
-        if (why) return fail(why);
-      }
-      const cost: Cost = scaleCost(costOf(kind), cells.length);
-      if (!canAfford(sim, cost)) return fail(NO_COINS);
-      spend(sim, cost);
+      const kind = cmd.kind, cells = cmd.cells.filter(([x, z]) => sim.tiles.get(cellKey(x, z)) !== kind);
+      const why = tileReason(sim, cells, kind);
+      if (why) return fail(why);
+      spend(sim, scaleCost(costOf(kind), cells.length));
       for (const [x, z] of cells) sim.tiles.set(cellKey(x, z), kind);
       return { ok: true };
     }
     case 'setStreet': {
-      const key = cmd.kind === 'road' ? 'street' : 'dirtRoad';
-      const tiles = cmd.tiles.filter(([i, j], n, a) => sim.streets.get(streetKey(i, j)) !== cmd.kind && a.findIndex(([a0, b0]) => a0 === i && b0 === j) === n);
-      for (const [i, j] of tiles) {
-        if (!streetTileCells(i, j).every(([x, z]) => isUnlocked(sim.world, x, z))) return fail('some cells blocked or locked');
-        if (!streetTileCells(i, j).every(([x, z]) => isFree(sim.world, x, z))) return fail('blocked: a building is in the way');
-      }
-      const nextStreets = new Map(sim.streets), nextTiles = new Map(sim.tiles);
-      for (const [i, j] of tiles) {
-        nextStreets.set(streetKey(i, j), cmd.kind);
-        for (const [x, z] of streetTileCells(i, j)) nextTiles.delete(cellKey(x, z)); // lanes and paths inside are replaced
-      }
-      const why = laneJoinProblem(nextStreets, nextTiles);
-      if (why) return fail(why);
-      const cost: Cost = scaleCost(costOf(key), tiles.length);
-      if (!canAfford(sim, cost)) return fail(NO_COINS);
-      spend(sim, cost);
-      swap(sim, nextStreets, nextTiles);
+      const plan = streetPlan(sim, cmd.tiles, cmd.kind);
+      if (typeof plan === 'string') return fail(plan);
+      spend(sim, plan.cost);
+      swap(sim, plan.streets, plan.tiles);
       return { ok: true };
     }
   }
+}
+
+/** Pure: why these cells cannot take a 1-cell tile now (null = ok). `cells` should already exclude no-ops. */
+export function tileReason(sim: SimState, cells: Cell[], kind: TileKind): string | null {
+  if (cells.some(([x, z]) => streetAt(sim, x, z))) return 'blocked: that cell is part of a street';
+  if (!cells.every(([x, z]) => isUnlocked(sim.world, x, z) && isFree(sim.world, x, z))) return 'some cells blocked or locked';
+  if (isLane(kind)) {
+    const next = new Map(sim.tiles);
+    for (const [x, z] of cells) next.set(cellKey(x, z), kind);
+    const why = laneJoinProblem(sim.streets, next);
+    if (why) return why;
+  }
+  return canAfford(sim, scaleCost(costOf(kind), cells.length)) ? null : NO_COINS;
+}
+
+/** Pure: the result of laying street / dirt road tiles (lanes and paths inside them are replaced), or the reason it cannot be done. */
+export function streetPlan(sim: SimState, all: Cell[], kind: StreetKind): string | { tiles: SimState['tiles']; streets: SimState['streets']; cost: Cost } {
+  const tiles = all.filter(([i, j], n, a) => sim.streets.get(streetKey(i, j)) !== kind && a.findIndex(([i0, j0]) => i0 === i && j0 === j) === n);
+  for (const [i, j] of tiles) {
+    if (!streetTileCells(i, j).every(([x, z]) => isUnlocked(sim.world, x, z))) return 'some cells blocked or locked';
+    if (!streetTileCells(i, j).every(([x, z]) => isFree(sim.world, x, z))) return 'blocked: a building is in the way';
+  }
+  const streets = new Map(sim.streets), cells = new Map(sim.tiles);
+  for (const [i, j] of tiles) {
+    streets.set(streetKey(i, j), kind);
+    for (const [x, z] of streetTileCells(i, j)) cells.delete(cellKey(x, z));
+  }
+  const why = laneJoinProblem(streets, cells);
+  if (why) return why;
+  const cost = scaleCost(costOf(kind === 'road' ? 'street' : 'dirtRoad'), tiles.length);
+  return canAfford(sim, cost) ? { tiles: cells, streets, cost } : NO_COINS;
 }
 
 /** Replaces the road maps' contents in place (other modules hold the same Map objects). */

@@ -2,8 +2,8 @@
 import { canAfford, costOf, type CostKey } from '../sim/costs';
 import type { SimState } from '../sim/state';
 
-const COSTED: Record<string, CostKey> = { house: 'house', farmPlot: 'farmPlot', shrub: 'shrub', fence: 'fence', scarecrow: 'scarecrow', path: 'path', road: 'road' };
-const PER_TILE = new Set(['path', 'road']);
+const COSTED: Record<string, CostKey> = { house: 'house', farmPlot: 'farmPlot', shrub: 'shrub', fence: 'fence', scarecrow: 'scarecrow', street: 'street', dirtRoad: 'dirtRoad', lane: 'lane', dirtLane: 'dirtLane', path: 'path' };
+const PER_TILE = new Set(['street', 'dirtRoad', 'lane', 'dirtLane', 'path']);
 
 export function createBuildMenu(sim: SimState, root: HTMLElement) {
   const buttons = [...root.querySelectorAll<HTMLButtonElement>('.build-btn, .tile-btn')];

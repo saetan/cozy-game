@@ -68,3 +68,21 @@ export const GROUND_FX: number, SOW_T: number;
 export function hash(...n: unknown[]): number;
 export function rng(seed: number): () => number;
 export function pick<T>(r: () => number, o: Record<string, T>): T;
+
+// Roads & paths add-on (roads.js) and 2 m lanes add-on (lanes.js)
+export const TILE: number, ROAD_CELLS: number;
+export const ORDER: readonly ('N' | 'E' | 'S' | 'W')[];
+export const SIDE: Record<'N' | 'E' | 'S' | 'W', [number, number, number]>;
+export type RoadConn = Partial<Record<'N' | 'E' | 'S' | 'W', string | boolean>>;
+/** A rendered road piece, like PlanPiece: `key` encodes the neighbour signature, so editing re-makes only changed pieces. */
+export interface RoadItem extends PlanPiece { conn?: RoadConn }
+export interface StreetTile { i: number; j: number; type: 'road' | 'dirt'; round?: boolean }
+export interface LaneCell { x: number; z: number; type: 'road' | 'dirt' }
+export function buildRoads(tiles: StreetTile[], opts?: { ox?: number; oz?: number; cuts?: Cell[]; seed?: number }): RoadItem[];
+export function roadTile(opts?: { conn?: RoadConn; round?: boolean; cuts?: Record<string, number[]>; seed?: number }): Group;
+export function dirtTile(opts?: { conn?: RoadConn; seed?: number }): Group;
+export function pathTile(opts?: { conn?: RoadConn; style?: 'gravel' | 'stones'; seed?: number; flowers?: boolean }): Group;
+export function buildLanes(cells: LaneCell[], opts?: { streets?: { i: number; j: number }[]; ox?: number; oz?: number; seed?: number }): { items: RoadItem[]; cuts: Cell[] };
+export function laneTile(opts?: { conn?: RoadConn; seed?: number }): Group;
+export function dirtLaneTile(opts?: { conn?: RoadConn; seed?: number }): Group;
+export function laneMouthSpill(opts?: { seed?: number }): Group;

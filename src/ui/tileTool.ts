@@ -1,13 +1,20 @@
-// Path / Road / Erase tools: tap or drag over cells to paint. Orbit is disabled for the left mouse /
+// Street / Dirt road (6 m tiles snapped to the 3x3-cell street grid), Lane / Dirt lane / Path (one cell) and Erase tools:
+// tap or drag to paint. Orbit is disabled for the left mouse /
 // one finger while a tool is active (two-finger pan/zoom still works). Commands go through game.apply.
 import * as THREE from 'three';
 import { CELL } from '../kit/index.js';
-import { costOf } from '../sim/costs';
-import { cellKey, isFree, isUnlocked } from '../sim/world';
+import { costOf, type CostKey } from '../sim/costs';
+import { streetPlan, tileReason } from '../sim/commands';
+import { STREET_CELLS, streetAt, streetTileCells, streetTileOf } from '../sim/surfaces';
+import { cellKey } from '../sim/world';
 import type { Game } from '../game';
-import type { Cell, TileKind } from '../sim/state';
+import type { Cell, StreetKind, TileKind } from '../sim/state';
 
-export type TileTool = TileKind | 'erase';
+export type StreetTool = 'street' | 'dirtRoad';
+export type TileTool = TileKind | StreetTool | 'erase';
+const STREET_KIND: Record<StreetTool, StreetKind> = { street: 'road', dirtRoad: 'dirt' };
+const LABEL: Record<string, string> = { street: 'street', dirtRoad: 'dirt road', lane: 'lane', dirtLane: 'dirt lane', path: 'path' };
+const isStreetTool = (t: TileTool | null): t is StreetTool => t === 'street' || t === 'dirtRoad';
 
 /** Cells on the straight segment a->b (4-connected), so a fast drag leaves no gaps. */
 export function lineCells(a: Cell, b: Cell): Cell[] {
@@ -42,29 +49,48 @@ export function createTileTool(d: TileToolDeps) {
   marker.position.y = 0.06; marker.visible = false; d.scene.add(marker);
 
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  /** The pointed cell; for the street tools, the street-grid tile (i, j) under it. */
   function pickCell(e: PointerEvent): Cell | null {
     const r = d.canvas.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, d.camera);
     const p = ray.ray.intersectPlane(ground, new THREE.Vector3());
-    return p ? [Math.floor(p.x / CELL), Math.floor(p.z / CELL)] : null;
+    if (!p) return null;
+    const c: Cell = [Math.floor(p.x / CELL), Math.floor(p.z / CELL)];
+    return isStreetTool(tool) ? streetTileOf(c[0], c[1]) : c;
   }
-  const hint = () => tool === 'erase' ? 'Tap or drag over tiles to erase them (no refund)' :
-    `Tap or drag to lay ${tool} tiles · ${costOf(tool as TileKind).coins} coin${costOf(tool as TileKind).coins === 1 ? '' : 's'} each`;
+  const costKey = () => tool as CostKey;
+  const hint = () => tool === 'erase' ? 'Tap or drag to erase (a street or dirt road tile goes whole; no refund)' :
+    `Tap or drag to lay ${LABEL[tool!]} tiles · ${costOf(costKey()).coins} coin${costOf(costKey()).coins === 1 ? '' : 's'} each`;
+  const say = (reason: string | null) => { status.textContent = reason === null ? hint() : reason === 'not enough coins' ? 'Not enough coins' : reason.charAt(0).toUpperCase() + reason.slice(1); };
 
-  function mark(c: Cell) {
-    const ok = tool === 'erase' ? sim.tiles.has(cellKey(c[0], c[1])) : isUnlocked(sim.world, c[0], c[1]) && isFree(sim.world, c[0], c[1]);
-    (marker.material as THREE.MeshBasicMaterial).color.set(ok ? (tool === 'erase' ? '#e8c27a' : '#7fd48a') : '#e5766f');
-    marker.position.set((c[0] + 0.5) * CELL, 0.06, (c[1] + 0.5) * CELL); marker.visible = true;
+  /** Why the pointed cell or tile cannot take the current tool (null = ok). */
+  function reasonFor(c: Cell): string | null {
+    if (tool === 'erase') return streetAt(sim, c[0], c[1]) || sim.tiles.has(cellKey(c[0], c[1])) ? null : 'nothing to erase here';
+    if (isStreetTool(tool)) { const p = streetPlan(sim, [c], STREET_KIND[tool]); return typeof p === 'string' ? p : null; }
+    if (sim.tiles.get(cellKey(c[0], c[1])) === tool) return null;
+    return tileReason(sim, [c], tool as TileKind);
+  }
+  function mark(c: Cell, hover = true) {
+    const why = reasonFor(c), big = isStreetTool(tool) || (tool === 'erase' && !!streetAt(sim, c[0], c[1]));
+    (marker.material as THREE.MeshBasicMaterial).color.set(why ? '#e5766f' : tool === 'erase' ? '#e8c27a' : '#7fd48a');
+    const [i, j] = big ? (isStreetTool(tool) ? c : streetTileOf(c[0], c[1])) : [0, 0];
+    marker.scale.setScalar(big ? STREET_CELLS : 1);
+    if (big) marker.position.set((i * STREET_CELLS + STREET_CELLS / 2) * CELL, 0.06, (j * STREET_CELLS + STREET_CELLS / 2) * CELL);
+    else marker.position.set((c[0] + 0.5) * CELL, 0.06, (c[1] + 0.5) * CELL);
+    marker.visible = true;
+    if (hover) say(why);
   }
   function paint(c: Cell) {
     const from = last ?? c;
     for (const cell of lineCells(from, c)) {
       if (last && cell[0] === last[0] && cell[1] === last[1]) continue;
-      const res = game.apply({ type: 'setTile', cells: [cell], kind: tool === 'erase' ? null : tool });
-      status.textContent = res.ok ? hint() : res.reason === 'not enough coins' ? 'Not enough coins' : 'Blocked: that cell is locked or occupied';
+      const res = tool === 'erase' ? game.apply({ type: 'setTile', cells: [cell], kind: null })
+        : isStreetTool(tool) ? game.apply({ type: 'setStreet', tiles: [cell], kind: STREET_KIND[tool] })
+        : game.apply({ type: 'setTile', cells: [cell], kind: tool as TileKind });
+      say(res.ok ? null : res.reason);
     }
-    last = c; mark(c);
+    last = c; mark(c, false);
   }
 
   function setTool(t: TileTool | null) {
