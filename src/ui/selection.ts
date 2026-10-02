@@ -157,7 +157,7 @@ export function createSelection(d: SelectionDeps) {
         picker.append(btn);
       }
       panel.replaceChildren(
-        el('div', { class: 'panel-head' }, el('b', { class: 'panel-title' }, 'Farm plot'), el('span', { class: 'panel-sub' }, `Growing ${cap(b.crop ?? '')}`), closeBtn()),
+        el('div', { class: 'panel-head' }, el('b', { class: 'panel-title' }, 'Farm plot'), closeBtn()),
         status,
         el('div', { class: 'panel-line' }, 'Next planting:'),
         picker,
