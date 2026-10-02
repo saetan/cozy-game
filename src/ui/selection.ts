@@ -7,6 +7,8 @@ import { chunkBuyReason, chunkPrice } from '../sim/commands';
 import { CROPS, cropInfo, stockTotal } from '../sim/crops';
 import { CHUNK, cellToChunk, inBounds, isUnlocked } from '../sim/world';
 import { traitInfo } from '../sim/traits';
+import { VEHICLES, isUnlocked as vehicleUnlocked, unlockLevel } from '../sim/vehicles';
+import { isDecor } from '../sim/decor';
 import type { Game } from '../game';
 import type { Building, BuildingType, Resident, Role } from '../sim/state';
 import balance from '../data/balance.json';
@@ -92,7 +94,7 @@ export function createSelection(d: SelectionDeps) {
     if (sel.kind === 'land') { renderLand(sel.cx, sel.cz); return; }
     const b = sim.buildings.get(sel.id);
     if (!b) { clear(); return; }
-    if (b.type === 'farmPlot') renderPlot(b); else renderGrowing(b);
+    if (b.type === 'farmPlot') renderPlot(b); else if (isDecor(b.type)) renderDecor(b); else renderGrowing(b);
   }
 
   // ---- house / market: level, next level, shared level-up button
@@ -102,6 +104,27 @@ export function createSelection(d: SelectionDeps) {
     up.disabled = !check.ok;
     up.addEventListener('click', () => { game.apply({ type: 'levelUp', buildingId: b.id }); });
     return el('div', { class: 'panel-actions' }, up, el('span', { id: 'levelup-reason', class: 'reason' }, check.reason ? REASON_TEXT[check.reason] : ''));
+  }
+  /** "Vehicles: Bicycle · Wagon (Lv3) · Car (Lv4)": locked ones are greyed and show the level that unlocks them. */
+  function vehiclesLine(b: Building) {
+    const line = el('div', { class: 'panel-line', id: 'house-vehicles' }, 'Vehicles: ');
+    VEHICLES.forEach((k, i) => {
+      const open = vehicleUnlocked(b.level, k);
+      if (i) line.append(' · ');
+      line.append(el('span', { class: 'vehicle ' + (open ? 'open' : 'locked'), 'data-vehicle': k }, open ? cap(k) : `${cap(k)} (Lv${unlockLevel(k)})`));
+    });
+    return line;
+  }
+  const DECOR_TEXT: Record<string, [string, string]> = {
+    shrub: ['Shrub', 'A leafy bush. Just for looks.'], fence: ['Fence', 'A little fence. Just for looks.'],
+    scarecrow: ['Scarecrow', `Plots within ${balance.scarecrow.radius} cells grow ${Math.round((balance.scarecrow.growthMultiplier - 1) * 100)}% faster (scarecrows do not stack).`],
+  };
+  function renderDecor(b: Building) {
+    const key = `d|${b.id}`;
+    if (key === panelKey) return;
+    panelKey = key; activityEl = null; live = null;
+    const [name, text] = DECOR_TEXT[b.type];
+    panel.replaceChildren(el('div', { class: 'panel-head' }, el('b', { class: 'panel-title' }, name), el('span', { class: 'panel-sub' }, 'Decor'), closeBtn()), el('div', { class: 'panel-line' }, text));
   }
   const stockText = (m: Building) => {
     const have = CROPS.filter(c => (m.stock?.[c] ?? 0) > 0).map(c => `${cap(c)} ${m.stock![c]}`);
@@ -118,6 +141,7 @@ export function createSelection(d: SelectionDeps) {
         panel.replaceChildren(
           el('div', { class: 'panel-head' }, el('b', { class: 'panel-title' }, `Lv ${b.level} · ${LEVELS[b.level - 1].name}`), el('span', { class: 'panel-sub' }, 'House'), closeBtn()),
           el('div', { class: 'panel-line' }, residents.length ? `Lives here: ${residents.map(r => r.name).join(', ')}` : 'Nobody lives here yet'),
+          vehiclesLine(b),
           max ? el('div', { class: 'panel-line' }, 'Fully grown') : el('div', { class: 'panel-line' }, `Next: ${LEVELS[b.level].name} — ${LEVELS[b.level].note}`),
           levelUpActions(b, check),
         );

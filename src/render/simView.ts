@@ -1,8 +1,10 @@
 // Renders sim state. Read-only: never mutates the sim. Objects keyed by id; created on first
 // sight, updated in place, removed when gone.
 import * as THREE from 'three';
-import { CELL, P, animate, grp, resident, setAction, type Species } from '../kit/index.js';
-import type { SimState, Building, BuildingType, Resident } from '../sim/state';
+import { CELL, P, animate, board, grp, resident, setAction, type Species } from '../kit/index.js';
+import type { SimState, Building, BuildingType, Resident, VehicleKind } from '../sim/state';
+import { accessCell } from '../systems/pathfinding';
+import { VEHICLES, isUnlocked } from '../sim/vehicles';
 import { residentPositionAt, cellCentre } from '../sim/position';
 import { createBuildingObject, crateRow, footprintSize, setMarketLevel } from './buildingView';
 import { poseFootprint, setHouseLevel, setHousePose } from './houseView';
@@ -12,12 +14,17 @@ import { facingAngle, kitAction, lerpAngle, plotKitStage } from './mapping';
 const MAX_STOCK_CRATES = 6;
 
 interface BView { obj: THREE.Group; stage: string; crates: string; mesh?: THREE.Object3D; crateObj?: THREE.Object3D }
-interface RView { obj: THREE.Group; action: string; phase: number; x: number; z: number; yaw: number }
+interface RView { obj: THREE.Group; action: string; phase: number; x: number; z: number; yaw: number; ride: THREE.Object3D | null }
+
+/** Kit pose while riding, and where each parked vehicle sits relative to its house's access cell: [dx, dz, yaw] in metres / radians. */
+const RIDE_POSE: Record<VehicleKind, string> = { bicycle: 'ride', wagon: 'push', car: 'sit' };
+const PARK: Record<VehicleKind, [number, number, number]> = { bicycle: [-0.55, -0.5, 1.2], wagon: [0.6, -0.5, -0.3], car: [0, 0.75, Math.PI / 2] };
 
 export function createSimView(scene: THREE.Scene, sim: SimState) {
   const bviews = new Map<number, BView>();
   const rviews = new Map<number, RView>();
   const tviews = new Map<string, { kind: string; obj: THREE.Group }>();
+  const vviews = new Map<string, THREE.Object3D>(); // `${houseId}:${kind}`: one per unlocked vehicle, parked or ridden
 
   const buildingCentre = (b: Building) => {
     const [w, h] = footprintSize(b.type);
@@ -85,20 +92,52 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
       obj.position.set(pos.x, 0, pos.z);
       obj.userData.simKind = 'resident'; obj.userData.simId = r.id;
       scene.add(obj);
-      v = { obj, action: '', phase: r.id * 1.7, x: pos.x, z: pos.z, yaw: 0 };
+      v = { obj, action: '', phase: r.id * 1.7, x: pos.x, z: pos.z, yaw: 0, ride: null };
       rviews.set(r.id, v);
     }
-    const act = kitAction(r.task);
+    const ride = r.vehicle ? vviews.get(`${r.homeId}:${r.vehicle}`) ?? null : null;
+    if (ride !== v.ride) {
+      if (v.ride) unboard(v, pos);
+      if (ride) { board(ride as THREE.Group, v.obj); v.obj.position.set(0, 0, 0); v.obj.rotation.y = 0; v.action = RIDE_POSE[r.vehicle!]; }
+      v.ride = ride;
+    }
+    const act = r.vehicle && ride ? RIDE_POSE[r.vehicle] : kitAction(r.task);
     if (act !== v.action) { setAction(v.obj, act); v.action = act; }
     let target = facingAngle(pos.x - v.x, pos.z - v.z);
     if (target === null && r.task && r.task.action !== 'stand' && r.task.action !== 'walk' && r.jobId !== null) {
       const job = sim.jobs.get(r.jobId), tb = job && sim.buildings.get(job.targetId);
       if (tb) { const c = buildingCentre(tb); target = facingAngle(c.x - pos.x, c.z - pos.z); }
     }
-    if (target !== null) { v.yaw = lerpAngle(v.yaw, target, 0.25); v.obj.rotation.y = v.yaw; }
+    const body = v.ride ?? v.obj; // while riding, the vehicle moves and the resident rides along in it
+    if (target !== null) { v.yaw = lerpAngle(v.yaw, target, 0.25); body.rotation.y = v.yaw; }
     v.x = pos.x; v.z = pos.z;
-    v.obj.position.set(pos.x, 0, pos.z);
+    body.position.set(pos.x, 0, pos.z);
     animate(v.obj, now + v.phase);
+  }
+
+  /** Puts the rider back in the scene on their own and the vehicle back in its parking spot. */
+  function unboard(v: RView, pos: { x: number; z: number }) {
+    scene.add(v.obj); v.obj.position.set(pos.x, 0, pos.z); v.obj.rotation.y = v.yaw;
+    v.ride = null; v.action = '';
+  }
+  /** Creates the vehicles a house has unlocked and parks the ones nobody is riding next to its access cell. */
+  function syncVehicles() {
+    const riding = new Set<THREE.Object3D>([...rviews.values()].flatMap(v => (v.ride ? [v.ride] : [])));
+    for (const b of sim.buildings.values()) {
+      if (b.type !== 'house') continue;
+      const acc = accessCell(sim.world, b.placement), c = acc && cellCentre(acc);
+      for (const k of VEHICLES) {
+        if (!isUnlocked(b.level, k)) continue;
+        const key = `${b.id}:${k}`;
+        let o = vviews.get(key);
+        if (!o) {
+          o = P[k]();
+          o.traverse(m => { if ((m as THREE.Mesh).isMesh) (m as THREE.Mesh).castShadow = (m as THREE.Mesh).receiveShadow = true; });
+          scene.add(o); vviews.set(key, o);
+        }
+        if (c && !riding.has(o)) { o.position.set(c.x + PARK[k][0], 0, c.z + PARK[k][1]); o.rotation.y = PARK[k][2]; }
+      }
+    }
   }
 
   function syncTiles() {
@@ -136,8 +175,9 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
     syncTiles();
     for (const b of sim.buildings.values()) syncBuilding(b, now);
     for (const [id, v] of bviews) if (!sim.buildings.has(id)) { scene.remove(v.obj); bviews.delete(id); }
+    syncVehicles();
     for (const r of sim.residents.values()) syncResident(r, sim.t, now);
-    for (const [id, v] of rviews) if (!sim.residents.has(id)) { scene.remove(v.obj); rviews.delete(id); }
+    for (const [id, v] of rviews) if (!sim.residents.has(id)) { if (v.ride) unboard(v, v); scene.remove(v.obj); rviews.delete(id); }
   }
   /** Rendered plan-piece keys of a house (tests). */
   const housePieceKeys = (id: number): string[] => (bviews.get(id)?.obj.children ?? []).map(o => String(o.userData.key));

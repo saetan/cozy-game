@@ -2,7 +2,7 @@
 import { canAfford, costOf, type CostKey } from '../sim/costs';
 import type { SimState } from '../sim/state';
 
-const COSTED: Record<string, CostKey> = { house: 'house', farmPlot: 'farmPlot', path: 'path', road: 'road' };
+const COSTED: Record<string, CostKey> = { house: 'house', farmPlot: 'farmPlot', shrub: 'shrub', fence: 'fence', scarecrow: 'scarecrow', path: 'path', road: 'road' };
 const PER_TILE = new Set(['path', 'road']);
 
 export function createBuildMenu(sim: SimState, root: HTMLElement) {

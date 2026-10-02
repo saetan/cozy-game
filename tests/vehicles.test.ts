@@ -5,6 +5,7 @@ import { advance, apply, createSim, snapshot, type SimState } from '../src/sim/s
 import { market, syncPlot } from '../src/sim/jobs';
 import { growthMultiplier } from '../src/sim/decor';
 import { inUse, isUnlocked, planLeg, unlockLevel, vehicleInfo } from '../src/sim/vehicles';
+import { describeActivity } from '../src/ui/activity';
 import { sortedEvents } from '../src/sim/events';
 import { findPath, WALKING } from '../src/systems/pathfinding';
 import { deserialize, serialize, SAVE_VERSION, type SaveData } from '../src/systems/save';
@@ -158,6 +159,21 @@ describe('decor', () => {
     expect(far.delay).toBeCloseTo(far.grow);
     expect(two.delay).toBeCloseTo(two.grow / 1.1);
     expect(growthMultiplier(near.sim, near.p)).toBe(1.1);
+  });
+});
+
+describe('activity text', () => {
+  it('says what the resident rides and where', () => {
+    const sim = createSim({ seed: 1 }); place(sim, 'market', [0, 0]);
+    const h = place(sim, 'house', [-14, 10]); levelTo(sim, h, 2);
+    place(sim, 'farmPlot', [-2, 12]);
+    const r = [...sim.residents.values()][0];
+    line(sim, r.cell[0], r.cell[0] + 10, r.cell[1], 'path');
+    let text = '';
+    for (let i = 0; i < 100 && !r.vehicle; i++) advance(sim, 0.5);
+    text = describeActivity(sim, r);
+    expect(r.vehicle).toBe('bicycle');
+    expect(text).toBe('Riding bicycle to the field');
   });
 });
 
