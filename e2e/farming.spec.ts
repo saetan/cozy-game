@@ -27,6 +27,8 @@ async function village(page: Page) {
   }, PLOT_AT);
   await page.locator('#arrival-ok').click();
   await page.clock.runFor(100);
+  // page.clock keeps flowing in real time by default: on slow CI renderers the sim would run on between steps
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1));
   return { errors, plot: ids.p, res: ids.r };
 }
 
