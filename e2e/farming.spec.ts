@@ -16,6 +16,16 @@ const onPlant = `s => { const r = ${R}(s); return !!r.task && r.task.action === 
 const onWater = `s => { const r = ${R}(s); return !!r.task && r.task.action === 'water'; }`;
 const plotIs = (id: number, st: string) => `s => s.buildings.get(${id}).plotState === '${st}'`;
 
+/** page.clock keeps flowing in real time by default, so on slow CI renderers the sim would run on between steps.
+ *  Pause it a moment ahead (at most one clamped frame); retry if that moment has already passed. */
+async function pauseClock(page: Page) {
+  for (let i = 0; i < 5; i++) {
+    try { await page.clock.pauseAt(await page.evaluate(() => Date.now() + 250)); return; }
+    catch (e) { if (!String(e).includes('past')) throw e; }
+  }
+  throw new Error('could not pause page.clock');
+}
+
 /** A house with one resident and a plot next to the market. */
 async function village(page: Page) {
   const errors = await openGame(page);
@@ -27,8 +37,7 @@ async function village(page: Page) {
   }, PLOT_AT);
   await page.locator('#arrival-ok').click();
   await page.clock.runFor(100);
-  // page.clock keeps flowing in real time by default: on slow CI renderers the sim would run on between steps
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1));
+  await pauseClock(page);
   return { errors, plot: ids.p, res: ids.r };
 }
 
