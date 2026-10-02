@@ -89,6 +89,7 @@
     "Lark"
   ],
   "startingCoins": 80,
+  "offlineCapHours": 8,
   "costs": {
     "house": {
       "coins": 50
