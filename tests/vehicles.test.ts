@@ -8,6 +8,7 @@ import { inUse, isUnlocked, planLeg, unlockLevel, vehicleInfo } from '../src/sim
 import { describeActivity } from '../src/ui/activity';
 import { sortedEvents } from '../src/sim/events';
 import { findPath, WALKING } from '../src/systems/pathfinding';
+import { surfaceLookup } from '../src/sim/surfaces';
 import { deserialize, serialize, SAVE_VERSION, type SaveData } from '../src/systems/save';
 import type { Cell, BuildingType, TileKind } from '../src/sim/state';
 import type { Rotation } from '../src/systems/placement';
@@ -24,7 +25,7 @@ const line = (sim: SimState, x0: number, x1: number, z: number, kind: TileKind) 
 };
 /** A house of the given level on the west side, with open ground to its east. */
 const house = (sim: SimState, level: number) => { const h = place(sim, 'house', [-14, 10]); levelTo(sim, h, level); return h; };
-const seconds = (sim: SimState, from: Cell, to: Cell, speeds: Record<string, number>) => findPath(sim.world, sim.tiles, from, to, speeds)!.cost;
+const seconds = (sim: SimState, from: Cell, to: Cell, speeds: Record<string, number>) => findPath(sim.world, surfaceLookup(sim), from, to, speeds)!.cost;
 
 describe('vehicle unlocks', () => {
   it('bicycle Lv2, wagon Lv3, car Lv4, and Lv4 is the kit garage level', () => {
@@ -36,7 +37,7 @@ describe('vehicle unlocks', () => {
   it('walking speeds match the old walkSpeed and path multiplier', () => {
     expect(WALKING.grass).toBe(balance.walkSpeed);
     expect(WALKING.path).toBe(balance.walkSpeed * balance.pathSpeedMultiplier);
-    expect(WALKING.road).toBe(WALKING.path);
+    expect(WALKING.street).toBe(WALKING.path); // sidewalks are as good as a garden path
   });
 });
 
@@ -49,33 +50,33 @@ describe('legs', () => {
   it('a Lv1 resident always walks', () => {
     const sim = createSim({ seed: 1 }); place(sim, 'market', [0, 0]); place(sim, 'house', [-14, 10]);
     const r = [...sim.residents.values()][0];
-    line(sim, r.cell[0], r.cell[0] + 14, r.cell[1], 'road');
+    line(sim, r.cell[0], r.cell[0] + 14, r.cell[1], 'lane');
     expect(planLeg(sim, r, r.cell, [r.cell[0] + 14, r.cell[1]])!.vehicle).toBeNull();
   });
   it('a Lv2 resident rides a bicycle only when it is faster', () => {
     const { sim, r, from, to } = setup(2);
     expect(planLeg(sim, r, from, to)!.vehicle).toBeNull(); // bare grass: same speed, so walk
-    line(sim, from[0], to[0], from[1], 'path');
+    line(sim, from[0], to[0], from[1], 'lane'); // path is foot only now, so the bicycle needs a lane
     expect(planLeg(sim, r, from, to)!.vehicle).toBe('bicycle');
   });
   it('car beats bicycle beats walking on a long road', () => {
     const { sim, r, from, to } = setup(4);
-    line(sim, from[0], to[0], from[1], 'road');
+    line(sim, from[0], to[0], from[1], 'lane');
     const car = seconds(sim, from, to, vehicleInfo('car').speed), bike = seconds(sim, from, to, vehicleInfo('bicycle').speed), walk = seconds(sim, from, to, WALKING);
     expect(car).toBeLessThan(bike); expect(bike).toBeLessThan(walk);
     const leg = planLeg(sim, r, from, to)!;
     expect(leg.vehicle).toBe('car'); expect(leg.cost).toBeCloseTo(car);
   });
-  it('the same car route is faster on road than on path', () => {
+  it('the same car route is faster on a lane than on a dirt lane', () => {
     const a = setup(4), b = setup(4);
-    line(a.sim, a.from[0], a.to[0], a.from[1], 'path'); line(b.sim, b.from[0], b.to[0], b.from[1], 'road');
+    line(a.sim, a.from[0], a.to[0], a.from[1], 'dirtLane'); line(b.sim, b.from[0], b.to[0], b.from[1], 'lane');
     expect(planLeg(b.sim, b.r, b.from, b.to)!.cost).toBeLessThan(planLeg(a.sim, a.r, a.from, a.to)!.cost);
   });
   it('a vehicle in use is not available to a housemate: they take the next best, or walk', () => {
     const { sim, h, r, from, to } = setup(4);
     apply(sim, { type: 'addResident', homeId: h });
     const other = [...sim.residents.values()][1];
-    line(sim, from[0], to[0], from[1], 'road');
+    line(sim, from[0], to[0], from[1], 'lane');
     r.vehicle = 'car'; expect(inUse(sim, h, 'car')).toBe(true);
     expect(planLeg(sim, other, from, to)!.vehicle).toBe('bicycle');
     r.vehicle = 'bicycle'; // car is free again, bicycle is out: car still wins
@@ -84,7 +85,7 @@ describe('legs', () => {
   it('another house does not share vehicles', () => {
     const { sim, h, r, from, to } = setup(4);
     const h2 = place(sim, 'house', [-14, 20]), o = [...sim.residents.values()].find(x => x.homeId === h2)!;
-    line(sim, from[0], to[0], from[1], 'road');
+    line(sim, from[0], to[0], from[1], 'lane');
     r.vehicle = 'car'; expect(inUse(sim, h2, 'car')).toBe(false);
     expect(planLeg(sim, o, from, to)!.vehicle).toBeNull(); // Lv1 house owns nothing
     expect(h).not.toBe(h2);
@@ -92,7 +93,7 @@ describe('legs', () => {
   it('a claimed vehicle is released when the leg ends', () => {
     const { sim, h, r } = setup(2);
     place(sim, 'farmPlot', [r.cell[0] + 8, r.cell[1] + 2]);
-    line(sim, r.cell[0], r.cell[0] + 8, r.cell[1], 'road');
+    line(sim, r.cell[0], r.cell[0] + 8, r.cell[1], 'lane');
     let rode = false;
     for (let i = 0; i < 600; i++) {
       advance(sim, 1);
@@ -135,7 +136,7 @@ describe('decor', () => {
       expect(sim.coins).toBe(100 - balance.costs[t].coins);
       expect(sim.buildings.get(id)!.placement.rotation).toBe(1);
       expect(apply(sim, { type: 'placeBuilding', building: t, rotation: 0, origin: [3, 3] })).toEqual({ ok: false, reason: 'blocked' });
-      expect(findPath(sim.world, sim.tiles, [3, 2], [3, 4])!.cells.some(c => c[0] === 3 && c[1] === 3)).toBe(false);
+      expect(findPath(sim.world, surfaceLookup(sim), [3, 2], [3, 4])!.cells.some(c => c[0] === 3 && c[1] === 3)).toBe(false);
     }
     expect([balance.costs.shrub.coins, balance.costs.fence.coins, balance.costs.scarecrow.coins]).toEqual([5, 3, 40]);
   });
@@ -168,7 +169,7 @@ describe('activity text', () => {
     const h = place(sim, 'house', [-14, 10]); levelTo(sim, h, 2);
     place(sim, 'farmPlot', [-2, 12]);
     const r = [...sim.residents.values()][0];
-    line(sim, r.cell[0], r.cell[0] + 10, r.cell[1], 'path');
+    line(sim, r.cell[0], r.cell[0] + 10, r.cell[1], 'dirtLane');
     let text = '';
     for (let i = 0; i < 100 && !r.vehicle; i++) advance(sim, 0.5);
     text = describeActivity(sim, r);
@@ -190,7 +191,7 @@ describe('save migrations', () => {
     expect([...sim.residents.values()].every(r => r.vehicle === null)).toBe(true);
     advance(sim, 500); // keeps simulating
   });
-  it('v1 -> v3 chains both migrations', () => {
+  it('v1 -> v4 chains every migration', () => {
     const d = serialize(v3(), 5) as unknown as { version: number; sim: Record<string, any> };
     d.version = 1; delete d.sim.unlockedCrops; delete d.sim.chunksBought;
     for (const r of d.sim.residents) delete r.vehicle;
@@ -213,8 +214,10 @@ describe('determinism with vehicles, roads and scarecrows', () => {
     for (let i = 0; i < 4; i++) apply(sim, { type: 'addResident', homeId: hs[0] });
     for (const x of [0, 2, 4]) place(sim, 'farmPlot', [x, 8]);
     place(sim, 'scarecrow', [2, 11]); place(sim, 'shrub', [6, 6]); place(sim, 'fence', [7, 6]);
-    line(sim, -9, 12, 4, 'road'); line(sim, 3, 3, 5, 'path');
-    for (let z = 5; z <= 9; z++) line(sim, 6, 6, z, 'road');
+    // a mixed network: a lane out to a street tile (joined on its flat west edge), a dirt road tile, a dirt lane and a path
+    apply(sim, { type: 'setStreet', tiles: [[4, 1]], kind: 'road' }); apply(sim, { type: 'setStreet', tiles: [[5, 1]], kind: 'dirt' });
+    line(sim, -9, 11, 4, 'lane'); line(sim, 3, 3, 5, 'path');
+    for (let z = 5; z <= 9; z++) line(sim, 6, 6, z, 'dirtLane');
     return sim;
   };
   it('one big step equals many small steps', () => {

@@ -9,7 +9,11 @@ export type Role = 'farmer' | 'hauler' | 'seller';
 export type JobKind = 'plant' | 'water' | 'harvest' | 'haul' | 'sell';
 export type PlotState = 'empty' | 'growing' | 'thirsty' | 'watered' | 'ripe';
 export type Cell = [number, number];
-export type TileKind = 'path' | 'road';
+/** One-cell tiles (2 m grid) and 6 m street tiles (3x3 cells, kit tile grid). */
+export type TileKind = 'path' | 'lane' | 'dirtLane';
+export type StreetKind = 'road' | 'dirt';
+/** What a cell is made of: the key into every speed table in balance.json. */
+export type Surface = 'grass' | 'path' | 'street' | 'dirtRoad' | 'lane' | 'dirtLane';
 export type TraitId = keyof typeof balance.traits;
 export type VehicleKind = keyof typeof balance.vehicles;
 
@@ -41,7 +45,8 @@ export interface Stats { harvested: number; delivered: number; sold: number; ear
 
 export interface SimState {
   t: number; rng: number; world: World;
-  tiles: Map<string, TileKind>;   // cell key -> tile; its kind is the surface that picks the speed
+  tiles: Map<string, TileKind>;   // cell key -> 1-cell tile (path, lane, dirt lane)
+  streets: Map<string, StreetKind>; // 'i,j' -> 6 m street tile covering cells 3i..3i+2, 3j..3j+2 (see sim/surfaces.ts)
   buildings: Map<number, Building>;
   residents: Map<number, Resident>;
   coins: number;
@@ -55,7 +60,7 @@ export interface SimState {
 
 export function newState(seed: number, t0: number, worldConfig?: WorldConfig): SimState {
   return {
-    t: t0, rng: seed >>> 0, world: createWorld(worldConfig), tiles: new Map(),
+    t: t0, rng: seed >>> 0, world: createWorld(worldConfig), tiles: new Map(), streets: new Map(),
     buildings: new Map(), residents: new Map(), coins: balance.startingCoins,
     unlockedCrops: [balance.defaultCrop], chunksBought: 0,
     jobs: new Map(), nextJobId: 1, nextResidentId: 1, dispatchPending: false,

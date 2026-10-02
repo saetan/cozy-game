@@ -3,6 +3,7 @@
 import balance from '../data/balance.json';
 import { placementCells, type Footprint, type Frame } from '../systems/placement';
 import { isFree, isUnlocked } from './world';
+import { streetAt } from './surfaces';
 import { canAfford, type Cost } from './costs';
 import { HOUSE_FRAME, HOUSE_MAX_LEVEL, houseCells } from './houses';
 import type { BuildingType, Cell, SimState } from './state';
@@ -31,7 +32,7 @@ export function levelUpCheck(sim: SimState, id: number): LevelUpCheck {
   const next = placementCells({ ...p, footprint: spec.cells(b.level + 1) });
   const mine = new Set(placementCells(p).map(([x, z]) => `${x},${z}`));
   const newCells = next.filter(([x, z]) => !mine.has(`${x},${z}`));
-  const blockedCells = newCells.filter(([x, z]) => !isUnlocked(sim.world, x, z) || !isFree(sim.world, x, z));
+  const blockedCells = newCells.filter(([x, z]) => !isUnlocked(sim.world, x, z) || !isFree(sim.world, x, z) || !!streetAt(sim, x, z));
   const reason: LevelUpReason | undefined = blockedCells.length ? 'blocked' : !canAfford(sim, cost) ? 'not enough coins' : undefined;
   return { ok: !reason, cost, blockedCells, newCells, ...(reason ? { reason } : {}) };
 }

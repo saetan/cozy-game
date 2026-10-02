@@ -1,6 +1,8 @@
 // Job board: buildings post jobs, residents claim exactly one, release on completion.
 import balance from '../data/balance.json';
 import { accessCell, findPath } from '../systems/pathfinding';
+import { surfaceLookup } from './surfaces';
+
 import { pushEvent } from './events';
 import { stockTotal } from './crops';
 import type { Building, Cell, Job, JobKind, Resident, Role, SimState } from './state';
@@ -52,11 +54,11 @@ export function jobCost(sim: SimState, r: Resident, job: Job): number | null {
   if (!target) return null;
   const a = accessCell(sim.world, target.placement);
   if (!a) return null;
-  const leg = findPath(sim.world, sim.tiles, r.cell, a);
+  const leg = findPath(sim.world, surfaceLookup(sim), r.cell, a);
   if (!leg) return null;
   if (job.kind === 'haul') {
     const m = market(sim), b = m && accessCell(sim.world, m.placement);
-    if (!b || !findPath(sim.world, sim.tiles, a, b)) return null;
+    if (!b || !findPath(sim.world, surfaceLookup(sim), a, b)) return null;
   }
   return leg.cost;
 }

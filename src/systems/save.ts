@@ -3,15 +3,16 @@ import balance from '../data/balance.json';
 import { emptyStock } from '../sim/crops';
 import { MARKET_FRAME } from '../sim/levels';
 import { createEventQueue, type QueuedEvent } from '../sim/events';
-import type { Building, Job, LogEntry, Resident, SimState, Stats, TileKind } from '../sim/state';
+import type { Building, Job, LogEntry, Resident, SimState, Stats, StreetKind, TileKind } from '../sim/state';
 import type { WorldConfig } from '../sim/world';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface SimData {
   t: number; rng: number; coins: number; unlockedCrops: string[]; chunksBought: number; stats: Stats; nextJobId: number; nextResidentId: number; dispatchPending: boolean;
   world: { config: WorldConfig; unlocked: string[]; occupied: [string, number][]; nextId: number };
   tiles: [string, TileKind][];
+  streets: [string, StreetKind][];
   buildings: Building[]; residents: Resident[]; jobs: Job[]; log: LogEntry[];
   queue: { items: QueuedEvent[]; seq: number }; // heap array order kept as-is (already a valid heap)
 }
@@ -29,7 +30,7 @@ export function serialize(sim: SimState, savedAt = 0, speed?: number): SaveData 
       t: sim.t, rng: sim.rng, coins: sim.coins, unlockedCrops: sim.unlockedCrops, chunksBought: sim.chunksBought, stats: sim.stats, nextJobId: sim.nextJobId, nextResidentId: sim.nextResidentId,
       dispatchPending: sim.dispatchPending,
       world: { config: sim.world.config, unlocked: [...sim.world.unlocked], occupied: [...sim.world.occupied], nextId: sim.world.nextId },
-      tiles: [...sim.tiles], buildings: [...sim.buildings.values()], residents: [...sim.residents.values()], jobs: [...sim.jobs.values()],
+      tiles: [...sim.tiles], streets: [...sim.streets], buildings: [...sim.buildings.values()], residents: [...sim.residents.values()], jobs: [...sim.jobs.values()],
       log: sim.log, queue: { items: sim.queue.heap.items, seq: sim.queue.seq },
     },
   };
@@ -54,7 +55,14 @@ function v2ToV3(data: SaveData): SaveData {
   for (const r of sim.residents) r.vehicle = null;
   return { ...data, version: 3, sim };
 }
-const MIGRATIONS: Record<number, (d: SaveData) => SaveData> = { 1: v1ToV2, 2: v2ToV3 };
+/** v3 -> v4: road kit. The old 'road' tile (the dirt-road stand-in) becomes a dirt lane; paths stay; no 6 m tiles yet. */
+function v3ToV4(data: SaveData): SaveData {
+  const sim = JSON.parse(JSON.stringify(data.sim)) as SimData;
+  sim.tiles = (sim.tiles as [string, string][]).map(([k, kind]) => [k, kind === 'road' ? 'dirtLane' : kind] as [string, TileKind]);
+  sim.streets = [];
+  return { ...data, version: 4, sim };
+}
+const MIGRATIONS: Record<number, (d: SaveData) => SaveData> = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4 };
 
 export function migrate(data: SaveData): SaveData {
   let d = data;
@@ -72,7 +80,7 @@ export function deserialize(raw: SaveData): SimState {
     t: s.t, rng: s.rng, coins: s.coins, unlockedCrops: [...s.unlockedCrops], chunksBought: s.chunksBought, stats: { ...s.stats }, nextJobId: s.nextJobId, nextResidentId: s.nextResidentId,
     dispatchPending: s.dispatchPending,
     world: { config: s.world.config, unlocked: new Set(s.world.unlocked), occupied: new Map(s.world.occupied), nextId: s.world.nextId },
-    tiles: new Map(s.tiles),
+    tiles: new Map(s.tiles), streets: new Map(s.streets),
     buildings: new Map(s.buildings.map(b => [b.id, b])), residents: new Map(s.residents.map(r => [r.id, r])), jobs: new Map(s.jobs.map(j => [j.id, j])),
     queue, log: s.log,
   };
