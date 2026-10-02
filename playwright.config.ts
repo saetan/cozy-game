@@ -7,7 +7,8 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   timeout: process.env.CI ? 120_000 : 30_000,
   retries: 0,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  // CI shards write blob reports that a later job merges into one HTML report
+  reporter: process.env.CI ? [['list'], ['blob']] : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:4173',
     viewport: { width: 1280, height: 800 },
