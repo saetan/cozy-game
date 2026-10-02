@@ -64,6 +64,9 @@ Data flow: **input → commands → sim**; **sim state → render/ui** (read-onl
 
 - In-game day ≈ 20 real minutes; offline cap 8 h.
 - Carrot grows in ⅓ in-game day; other crops slower and worth more.
+- **Crops (M5a)**, bought with coins to unlock (carrot free): carrot 400 s / 10 coins; cabbage 600 / 16, unlock 100; wheat 800 / 24, unlock 250; tomato 1000 / 34, unlock 500; pumpkin 1400 / 52, unlock 1000. Slower crops pay more per crate and slightly more per second. A plot's crop applies at its next planting; crates keep their crop; the market stocks and sells per crop, most valuable first.
+- **Market levels (M5a)**: Lv1–3 = 1–3 stalls = up to that many concurrent sellers. Footprint grows in a fixed 4×2 frame (Lv1 2×2, Lv2 3×2, Lv3 4×2), same blocked-cell rules as houses; level-up costs 300 then 800 coins. No price bonus per level.
+- **Land (M5a)**: a locked chunk edge-adjacent to your land costs `300 × 1.5^(chunks bought so far)` coins (rounded): 300, 450, 675, …
 - House Lv2 ≈ 2 in-game days of income; each level ≈ 1.6× the previous.
 - Specialist ≈ 1.5× generalist at their job; path ≈ 1.5× walk speed.
 
