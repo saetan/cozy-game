@@ -24,7 +24,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f0ea; fon
 .panel-line.trait { color: #5b6b52; }
 .panel-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .reason { color: #b4544d; }
-.ui-panel .close { min-width: 36px; padding: 0; font-size: 18px; line-height: 1; }
+.ui-panel .close { margin-left: auto; min-width: 36px; padding: 0; font-size: 18px; line-height: 1; }
 .roles, .crops { display: flex; gap: 6px; flex-wrap: wrap; }
 .role-btn { flex: 1 1 0; }
 .crop-btn { flex: 1 1 40%; }
