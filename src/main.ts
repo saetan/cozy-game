@@ -124,7 +124,7 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
     /** Test-only coin grant (the sim has no such command, on purpose). */
     giveCoins: (n: number) => { sim.coins += n; },
     /** Keys of the road pieces currently rendered (streets, lanes, lane mouths, paths), sorted. */
-    roadKeys: () => view.roadKeys(),
+    roadKeys: () => view.roadPieces(),
     /** Plan-piece keys currently rendered for a house. */
     housePieceKeys: (id: number) => view.housePieceKeys(id),
     /** Number of scene objects with this name (e.g. selection ghost cells). */

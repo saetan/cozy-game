@@ -192,5 +192,5 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
     parts.fx?.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible) fxVisible++; });
     return { action: v.obj.userData.action as string, props: parts.prop ? [parts.prop.name] : [], fxVisible };
   }
-  return { sync, roadKeys: roads.keys, plotView, residentView, cellCentre, pick, residentPosition, housePieceKeys };
+  return { sync, roadPieces: roads.keys, plotView, residentView, cellCentre, pick, residentPosition, housePieceKeys };
 }
