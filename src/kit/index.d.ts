@@ -1,10 +1,10 @@
 import type { Group, Material, Object3D } from 'three';
 
 export const CELL: number, WALL_H: number, T: number, FOUND_H: number, RISE: number;
-export const PITCH: number, PORCH_RISE: number, PORCH_EAVE: number;
+export const PITCH: number, PORCH_RISE: number, PORCH_EAVE: number, PORCH_H: number;
 
 export type Species = 'bunny' | 'bear' | 'cat' | 'fox' | 'frog';
-export type ActionName = 'stand' | 'walk' | 'wave' | 'carry' | 'work' | 'water' | 'sell' | 'sit' | 'ride' | 'push';
+export type ActionName = 'stand' | 'walk' | 'wave' | 'carry' | 'work' | 'water' | 'sell' | 'sit' | 'ride' | 'push' | 'walkBike' | 'sow' | 'hoe';
 export type Cell = [x: number, z: number];
 export type FloorCell = [x: number, z: number, floor: number];
 
@@ -34,6 +34,13 @@ export function setAction(res: Group, action: ActionName | string): Group;
 export function setPose(res: Group, pose: string): Group;
 export function animate(res: Group, t: number): void;
 export function board(vehicle: Group, res: Group): Group;
+export function alight(vehicle: Group): Group;
+export function parkBike(stand: Group, bike: Group, i?: number): Group;
+export function unparkBike(bike: Group, parent: Object3D): Group;
+export function slotWorld(stand: Group, i?: number): { pos: unknown; ry: number; approach: unknown };
+export const WALK_BIKE_OFFSET: unknown;
+export function newResident(...args: any[]): Group;
+export function defineAction(name: string, def?: { label?: string; pose?: string; setup?: (...a: any[]) => void; tick?: (...a: any[]) => void }): void;
 export function actorScene(species: Species, action: ActionName | string): Group;
 export const getActors: () => Group[];
 export const clearActors: () => void;
@@ -54,7 +61,10 @@ export const POSES: Record<string, number[]>;
 export const ACTIONS: Record<string, string>;
 export const SIDES: Record<string, [number, number, number]>;
 export function produce(type: string): Group;
-export function crop(type: string, stage?: number): Group;
+export function crop(type: string, stage?: number, opts?: { thirsty?: boolean }): Group;
+export function cropThirsty(type: string): Group;
+export function animateMarker(obj: Object3D, t: number): void;
+export const GROUND_FX: number, SOW_T: number;
 export function hash(...n: unknown[]): number;
 export function rng(seed: number): () => number;
 export function pick<T>(r: () => number, o: Record<string, T>): T;

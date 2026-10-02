@@ -40,9 +40,10 @@ export function rotationShift(fp: Footprint, r: number): [number, number] {
   return [-Math.min(...corners.map(c => c[0])), -Math.min(...corners.map(c => c[1]))];
 }
 
-/** Plan pieces of a level in frame coordinates. Driveways are separate tiles, so they are excluded. */
+/** Plan pieces of a level in frame coordinates. Driveways are separate tiles, so they are excluded.
+ *  Bike stands (kit 0.2) sit outside the sim's house frame; a later PR decides where the stand goes. */
 export const housePlan = (level: number): PlanPiece[] =>
-  buildPlan(LEVELS[level - 1], HOUSE_OFFSET[0] * CELL, HOUSE_OFFSET[1] * CELL).filter(p => !p.key.startsWith('drive:'));
+  buildPlan(LEVELS[level - 1], HOUSE_OFFSET[0] * CELL, HOUSE_OFFSET[1] * CELL).filter(p => !p.key.startsWith('drive:') && !p.key.startsWith('bikeStand:'));
 
 interface HouseData { level: number; pieces: Map<string, THREE.Object3D>; ghostMat?: THREE.Material }
 const dataOf = (g: THREE.Object3D) => g.userData.house as HouseData;
