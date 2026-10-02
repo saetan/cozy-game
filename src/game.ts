@@ -4,6 +4,8 @@ import { footprintFor } from './sim/commands';
 import { HOUSE_FRAME } from './sim/houses';
 import type { BuildingType, Cell } from './sim/state';
 import type { Frame, Rotation } from './systems/placement';
+import { catchUp, type AwaySummary } from './systems/catchup';
+import { deserialize, serialize, type SaveData, type SaveStore } from './systems/save';
 
 export const SEED = 1;
 export const MAX_FRAME_DT = 0.25;
@@ -21,10 +23,10 @@ export interface Game {
   frame(realDt: number): void;
 }
 
-export function createGame(opts: { demo?: boolean } = {}): Game {
-  const sim = createSim({ seed: SEED });
+export function createGame(opts: { demo?: boolean; sim?: SimState; speed?: Speed } = {}): Game {
+  const sim = opts.sim ?? createSim({ seed: SEED });
   const game: Game = {
-    sim, speed: 1,
+    sim, speed: opts.speed ?? 1,
     setSpeed(s) { game.speed = s; },
     apply: cmd => apply(sim, cmd),
     placeBuilding: (type, rotation, origin) => apply(sim, { type: 'placeBuilding', building: type, rotation, origin }),
@@ -33,6 +35,7 @@ export function createGame(opts: { demo?: boolean } = {}): Game {
       advance(sim, dt * game.speed);
     },
   };
+  if (opts.sim) return game; // loaded village: market and everything else already exist
   game.placeBuilding('market', 0, [0, 0]); // free (balance.costs.market = 0), pre-placed
   if (opts.demo) {
     game.placeBuilding('house', 0, [-5, 0]);
@@ -46,3 +49,16 @@ export function createGame(opts: { demo?: boolean } = {}): Game {
 export const footprintOf = (t: BuildingType) => footprintFor(t)!;
 /** Fixed rotation frame for building types that grow in place (houses). */
 export const frameOf = (t: BuildingType): Frame | undefined => (t === 'house' ? HOUSE_FRAME : undefined);
+
+export const saveGame = (g: Game, store: SaveStore, now: number) => store.save(serialize(g.sim, now, g.speed));
+
+/** Startup from a store: loads + catches up an existing save, else a new game. An unreadable store counts as no save; an unsupported version throws (never silently overwritten). */
+export async function loadGame(store: SaveStore, now: number): Promise<{ game: Game; away: AwaySummary | null }> {
+  let data: SaveData | null = null;
+  try { data = await store.load(); } catch { data = null; }
+  if (!data) return { game: createGame(), away: null };
+  const sim = deserialize(data);
+  const away = catchUp(sim, data.savedAt, now);
+  const speed = SPEEDS.find(s => s === data!.speed) ?? 1;
+  return { game: createGame({ sim, speed }), away };
+}
