@@ -1,16 +1,17 @@
 # Cozy Game
 
-A cozy house-building browser game built with three.js. All models are procedural (see `src/kit/kit.js`).
+A cozy house-building browser game built with three.js. All models are procedural, from the Pastel House Kit (`design/kit/`).
 
 ```sh
 npm install
 npm run dev
 ```
 
-- `src/main.js` — renderer, camera, loop (starter scene: level path Lv1→7, use ←/→)
-- `src/kit/kit.js` — Pastel House Kit (pieces, characters, actions, builder, levels)
+- `src/main.ts` — game entry: wires the sim to the renderer, UI and save
+- `src/sim/`, `src/systems/`, `src/render/`, `src/ui/` — simulation, pathfinding/save, three.js views, HUD and panels
+- `src/kit/index.js` — the game's single import point for the kit (+ `index.d.ts` types)
+- `design/kit/` — Claude Design handoff, vendored untouched: kit modules, README with conventions & design tokens, interactive reference pages. See `design/README.md` for the version and upgrade checklist.
 - `docs/GAME_DESIGN.md` — game direction, decisions and milestones
-- `design_handoff_house_kit/` — original Claude Design handoff: README with conventions & design tokens, interactive reference (`reference/House Kit.html`)
 
 ## Tests
 

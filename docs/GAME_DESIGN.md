@@ -1,6 +1,6 @@
 # Cozy Game — Game Design
 
-A cozy **village sim with idle progression** for the web browser, built on three.js with the procedural Pastel House Kit (`src/kit/kit.js`, see `design_handoff_house_kit/README.md` for kit conventions and design tokens).
+A cozy **village sim with idle progression** for the web browser, built on three.js with the procedural Pastel House Kit (vendored from Claude Design in `design/kit/`; see `design/kit/README.md` for kit conventions and design tokens, `design/README.md` for the version and upgrade rules).
 
 ## Pitch
 
@@ -36,7 +36,7 @@ You are the unseen caretaker of a small animal village. You place houses, farm p
 
 ```
 src/
-  kit/        pieces, characters, actions, builder, levels (split from kit.js, JS) + kit.d.ts
+  kit/        index.js re-exporting the vendored kit in design/kit/ (core, characters, vehicles, farm, house, roads; JS) + index.d.ts
   sim/        clock, events, world (chunks, cells), buildings, jobs, residents, economy  — pure TS, no three.js
   systems/    pathfinding (A*), placement rules, catch-up, save (SaveStore)
   render/     scene, camera, chunk view, building view (diff by plan key + pop-in), actor view (interpolation)
