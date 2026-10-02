@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Road scale options — 6 m streets vs 2 m lanes vs mixed</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; background: #f4f0ea; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #3a3632; font-size: 13px; line-height: 1.5; }
+  a { color: #b86f63; } a:hover { color: #8f4f45; }
+  .wrap { max-width: 1680px; margin: 0 auto; padding: 24px 20px 48px; display: flex; flex-direction: column; gap: 20px; }
+  header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 20px; align-items: start; }
+  @media (max-width: 900px) { header { grid-template-columns: 1fr; } }
+  h1 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
+  h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  h3 { margin: 0 0 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #7a736c; }
+  p { margin: 0; text-wrap: pretty; }
+  .sub { color: #6d665f; max-width: 60ch; }
+  .card { background: rgba(255,253,250,0.92); border: 1px solid rgba(58,54,50,0.12); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .rec { border-color: #3a3632; }
+  .rec ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .lbl { font-size: 11px; color: #7a736c; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .seg button { font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(58,54,50,0.18); background: #fdfbf8; color: #3a3632; cursor: pointer; }
+  .seg button:hover { background: #f3eee7; }
+  .seg button.on { background: #3a3632; color: #fdfbf8; border-color: #3a3632; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }
+  .head { display: flex; gap: 10px; align-items: baseline; }
+  .badge { flex: none; width: 24px; height: 24px; border-radius: 6px; background: #3a3632; color: #fdfbf8; font-weight: 600; display: grid; place-items: center; font-size: 13px; }
+  three-d-stage { display: block; width: 100%; height: 440px; border-radius: 8px; overflow: hidden; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .stat { background: #f6f2ec; border-radius: 6px; padding: 8px; }
+  .stat b { display: block; font-size: 16px; font-weight: 600; }
+  .stat span { font-size: 11px; color: #7a736c; }
+  .bar { height: 6px; border-radius: 3px; background: #e7e1d8; overflow: hidden; margin-top: 6px; }
+  .bar i { display: block; height: 100%; background: #bcb5bb; }
+  ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; color: #4f4943; }
+  li { text-wrap: pretty; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; background: #f1ece5; padding: 0 3px; border-radius: 3px; }
+  .pieces { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .pieces { grid-template-columns: 1fr; } }
+  .pieces three-d-stage { height: 480px; }
+  .legend { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; color: #4f4943; }
+  .legend b { font-weight: 600; color: #3a3632; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; border: 1px solid rgba(58,54,50,0.15); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <h1>Road scale options for the 2 m game grid</h1>
+        <p class="sub">Same village in each option: 3 houses (2×2, 3×2, 2×2), market (2×2), 6 farm plots, garden paths, a straight, bend, T, crossing and an asphalt ↔ dirt join. Same ground (40 × 32 m) and the same camera, so land use reads directly. Faint lines = 2 m game cells.</p>
+      </div>
+      <div class="controls">
+        <div><div class="lbl">Camera (all views)</div><div class="seg" id="cams"><button data-c="game">Game · 22 m iso</button><button data-c="wide">Overview</button><button data-c="top">Top-down</button></div></div>
+        <div><div class="lbl">Motion</div><div class="seg" id="motion"><button data-m="1">Play</button><button data-m="0">Pause</button></div></div>
+      </div>
+    </div>
+    <div class="card rec">
+      <h2>Recommendation: C — 6 m streets in the centre, 2 m dirt lanes outward</h2>
+      <ol>
+        <li><b>Keep the 6 m kit as the "Street" (village centre).</b> It reads instantly as a town, has sidewalks for residents and room for two cars. Paint it on the 3×3 snap only.</li>
+        <li><b>Add 2 m lanes as the cell-paintable tool</b> — dirt lane first (farms, orchards, outskirts), asphalt lane optional for quiet cul-de-sacs. They fit the grid and the painting UX exactly.</li>
+        <li><b>Joins are automatic:</b> a lane painted against a street edge gets a lane mouth and the street drops its kerb (same mechanism as driveways). Allow only one lane per 2 m edge cell.</li>
+        <li>Don't use 2 m asphalt for the whole village (B): it's compact and paintable, but a single lane with no sidewalk reads as a driveway, cars can't pass, and dead ends need a turning cell.</li>
+      </ol>
+    </div>
+  </header>
+
+  <div class="cols">
+    <section class="card" id="A">
+      <div class="head"><span class="badge">A</span><h2>6 m streets (kit as is)</h2></div>
+      <three-d-stage id="stA" name="option-a-6m-streets" background="#f4f0ea"></three-d-stage>
+      <div class="stats" id="sA"></div>
+      <div><h3>At game distance</h3><ul>
+        <li>Most "town"-like: two lanes, centre line, kerbs, sidewalks, zebra crossings. Very readable.</li>
+        <li>Streets dominate the frame — roughly ⅓ of the village is road and sidewalk; houses look small beside them.</li>
+      </ul></div>
+      <div><h3>Awkward</h3><ul>
+        <li>Painting snaps to 3×3 blocks: one tap covers 9 cells; you can't nudge a road by one cell.</li>
+        <li>Lots must fit the 3-cell rhythm between streets — the 3×2 house fills its block exactly, so there's no garden room.</li>
+        <li>Driveways and paths need the dropped-kerb hand-off from <code>connectLot</code>; works, but every lot must face a street edge.</li>
+        <li>The dirt road is also 6 m — heavy for a farm track.</li>
+      </ul></div>
+    </section>
+
+    <section class="card" id="B">
+      <div class="head"><span class="badge">B</span><h2>2 m lanes (new set)</h2></div>
+      <three-d-stage id="stB" name="option-b-2m-lanes" background="#f4f0ea"></three-d-stage>
+      <div class="stats" id="sB"></div>
+      <div><h3>At game distance</h3><ul>
+        <li>Cosiest and most compact — feels like a hamlet. Houses become the hero.</li>
+        <li>The kit car is ~1.3 m wide (1.4 m over fenders) on 1.7 m asphalt — it fits, but the lane reads like a driveway, not a road. A 1.6–1.8 m car would touch the kerbs.</li>
+      </ul></div>
+      <div><h3>Awkward</h3><ul>
+        <li>Single lane: two vehicles can't pass; they need passing/waiting rules or a 2-cell-wide painted section.</li>
+        <li>Dead ends have no room to turn — the car spins on the spot here. Needs a turning patch or reversing.</li>
+        <li>No sidewalk: residents share the lane or need parallel paths (extra cells).</li>
+        <li>Asphalt lanes and driveways are nearly the same width and colour family — hard to tell apart.</li>
+      </ul></div>
+    </section>
+
+    <section class="card" id="C">
+      <div class="head"><span class="badge">C</span><h2>Mixed: 6 m centre + 2 m dirt lanes</h2></div>
+      <three-d-stage id="stC" name="option-c-mixed" background="#f4f0ea"></three-d-stage>
+      <div class="stats" id="sC"></div>
+      <div><h3>At game distance</h3><ul>
+        <li>Clear hierarchy: busy paved centre, soft dirt lanes to the fields — matches the gameplay (cars fast on roads, slower on dirt).</li>
+        <li>Farm side stays light and green; the lane is the same scale as the plots and paths.</li>
+      </ul></div>
+      <div><h3>Awkward</h3><ul>
+        <li>A lane meets the street at one of the 3 edge cells of a tile, so it can look off-centre; the middle cell is the tidy default.</li>
+        <li>The lane crosses the sidewalk on a dropped kerb with a dirt spill — reads fine, but residents and vehicles share that cell.</li>
+        <li>Lanes can't join a street tile's corner or a junction arm (only flat sidewalk edges).</li>
+      </ul></div>
+    </section>
+  </div>
+
+  <section class="card" id="pieces">
+    <div class="head"><span class="badge">+</span><h2>New 2 m pieces (B and C) — additions in <code>kit/lanes.js</code>, 6 m pieces unchanged</h2></div>
+    <div class="pieces">
+      <three-d-stage id="stP" name="lane-pieces" background="#f4f0ea"></three-d-stage>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="legend">
+          <b>Row 1</b><span>Asphalt lane: dead end · straight (car) · corner · T · cross · join → dirt</span>
+          <b>Row 2</b><span>Dirt lane: dead end · straight (bike) · corner · T · cross</span>
+          <b>Row 3</b><span>Lane mouth: dirt lane meets a 6 m street; the street drops its kerb</span>
+        </div>
+        <div><h3>Profile</h3><ul>
+          <li>Asphalt lane: 1.7 m asphalt (<span class="sw" style="background:#bcb5bb"></span><code>#bcb5bb</code>) + 0.15 m low kerb each side (h 0.10, <span class="sw" style="background:#d6cfc4"></span><code>#d6cfc4</code>) = 2.0 m. Top <code>ASPH_H 0.04</code>. Dead end gets a white stop line.</li>
+          <li>Dirt lane: 1.5 m dirt (<span class="sw" style="background:#dfc7a3"></span><code>#dfc7a3</code>), ruts ±0.38 m, ragged chunks and tufts to ~1.8 m. Top <code>DIRT_H 0.03</code>.</li>
+          <li>Corners are quarter-annuli centred on the cell corner (centre-line r 1 m), like the 6 m bends.</li>
+        </ul></div>
+        <div><h3>API</h3><ul>
+          <li><code>laneTile({ conn, seed })</code>, <code>dirtLaneTile({ conn, seed })</code> — <code>conn[N|E|S|W] = 'road' | 'dirt' | 'street'</code>. A <code>'dirt'</code> side on asphalt = join (kerb runs on, dirt spill); <code>'street'</code> = lane mouth (flared to 2 m).</li>
+          <li><code>laneMouthSpill()</code> — dirt on the street's dropped sidewalk, pivot on the shared edge.</li>
+          <li><code>buildLanes(cells, { streets, ox, oz, seed })</code> → <code>{ items, cuts }</code>; items match <code>buildRoads</code> (<code>key, make, x, y, z, ry</code>); pass <code>cuts</code> to <code>buildRoads</code> to drop the street kerb.</li>
+          <li>Cell pivot at ground centre, 1 unit = 1 m, named meshes (<code>lane_asphalt</code>, <code>lane_kerb</code>, <code>dirt_rut</code>…) reusing the road materials.</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="three-d-stage.js"></script>
+<script type="module">
+import * as Kit from '../kit/kit.js';
+import { buildA, buildB, buildC, buildPieces } from './road-scale-scenes.js';
+
+const ids = ['stA', 'stB', 'stC', 'stP'], stages = ids.map(id => document.getElementById(id));
+await Promise.all(stages.map(s => s.ready));
+Kit.clearActors();
+const scenes = [buildA(), buildB(), buildC(), buildPieces()];
+scenes.forEach((s, k) => stages[k].setObject(s.group));
+
+// land-use stats
+const base = scenes[0].stats;
+[['sA', 0], ['sB', 1], ['sC', 2]].forEach(([id, k]) => {
+  const s = scenes[k].stats, area = s.w * s.d * 4, pct = Math.round(area / (base.w * base.d * 4) * 100);
+  document.getElementById(id).innerHTML =
+    `<div class="stat"><b>${area} m²</b><span>village footprint · ${s.w}×${s.d} cells</span><div class="bar"><i style="width:${pct}%"></i></div></div>` +
+    `<div class="stat"><b>${s.roadM2} m²</b><span>road surface · ${s.road} cells</span><div class="bar"><i style="width:${Math.round(s.roadM2 / base.roadM2 * 100)}%"></i></div></div>` +
+    `<div class="stat"><b>${Math.round(s.road / (s.w * s.d) * 100)}%</b><span>of the village is road</span></div>`;
+});
+
+const S = Object.assign({ cam: 'game', play: true }, JSON.parse(localStorage.getItem('roadscale.state') || '{}'));
+const GAME_T = [[5, 0, 2.5], [3, 0, 1.5], [6, 0, 4]];   // game camera aims at each option's joins
+const CAMS = { game: [[1, 1.15, 1], 22], wide: [[1, 1.3, 1], 40], top: [[0, 1, 0.12], 42] };
+function setCam() {
+  const [d, r] = CAMS[S.cam], n = Math.hypot(...d);
+  stages.forEach((st, k) => {
+    const t = k === 3 ? [7, 0, 4.5] : S.cam === 'game' ? GAME_T[k] : [0, 0, 0], rr = k === 3 ? r * 0.85 : r;
+    st._controls.target.set(...t);
+    st._camera.position.set(t[0] + d[0] / n * rr, d[1] / n * rr, t[2] + d[2] / n * rr);
+    st._camera.near = 0.1; st._camera.far = 400; st._camera.updateProjectionMatrix(); st._controls.update();
+  });
+}
+function sync() {
+  document.querySelectorAll('#cams button').forEach(b => b.classList.toggle('on', b.dataset.c === S.cam));
+  document.querySelectorAll('#motion button').forEach(b => b.classList.toggle('on', (b.dataset.m === '1') === S.play));
+  localStorage.setItem('roadscale.state', JSON.stringify(S));
+}
+document.getElementById('cams').onclick = e => { const c = e.target.dataset.c; if (c) { S.cam = c; setCam(); sync(); } };
+document.getElementById('motion').onclick = e => { const m = e.target.dataset.m; if (m) { S.play = m === '1'; sync(); } };
+setCam(); sync();
+
+const ticks = scenes.flatMap(s => s.tick);
+let last = performance.now();
+(function loop() {
+  const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000), t = now / 1000; last = now;
+  if (S.play) { for (const f of ticks) f(dt, t); for (const a of Kit.getActors()) Kit.animate(a, t + a.userData.phase); }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
