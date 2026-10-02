@@ -6,3 +6,5 @@ dist/
 playwright-report/
 test-results/
 dist-e2e/
+blob-report/
+all-blob-reports/

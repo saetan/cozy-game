@@ -17,3 +17,4 @@ npm run dev
 
 - `npm test` runs the Vitest unit/sim tests (`tests/`).
 - `npm run e2e` runs the Playwright browser tests (`e2e/`) against an e2e-mode production build (test hooks `window.__game` / `window.__e2e` exist only there and in dev). First time: `npx playwright install chromium`. Report: `npx playwright show-report`.
+- CI: pull requests run typecheck + unit tests only. The e2e suite runs in CI on pushes to `main` (split across 4 parallel runners, merged into one `playwright-report` artifact), or on demand from the Actions tab (CI → Run workflow → pick a branch). Run `npm run e2e` locally before opening a PR.
