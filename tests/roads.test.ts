@@ -38,7 +38,7 @@ describe('placing streets', () => {
     expect(reason(street(sim, [[100, 100]]))).toBe('some cells blocked or locked');
     house(sim, [3, 3]);
     expect(reason(street(sim, [[1, 1]]))).toBe('blocked: a building is in the way');
-    expect(reason(street(sim, [[0, 0]]))).toBeNull(); // the market's own cells are at 0..1 only if placed; the village here is bare
+    expect(reason(street(sim, [[0, 0]]))).toBeNull(); // a free block elsewhere is fine
     expect(sim.streets.size).toBe(1);
   });
   it('replaces lanes and paths inside the block', () => {
@@ -52,7 +52,7 @@ describe('placing streets', () => {
     expect(reason(apply(sim, { type: 'placeBuilding', building: 'shrub', rotation: 0, origin: [4, 1] }))).toContain('blocked');
     expect(apply(sim, { type: 'placeBuilding', building: 'shrub', rotation: 0, origin: [6, 1] }).ok).toBe(true);
   });
-  it('1-cell tiles cannot go on a street, but replace lanes and are replaced by buildings', () => {
+  it('1-cell tiles cannot go on a street cell', () => {
     const sim = rich(); street(sim, [[0, 0]]);
     expect(reason(tile(sim, [[1, 1]], 'path'))).toContain('street');
   });

@@ -32,8 +32,11 @@ export function buildRoadItems(src: RoadSource): RoadItem[] {
 
 export function createRoadView(scene: THREE.Scene, src: RoadSource) {
   const views = new Map<string, THREE.Object3D>();
-  let first = true;
+  let first = true, last = '';
   function sync(now: number) {
+    const sig = `${[...src.streets].join(';')}|${[...src.tiles].join(';')}`; // cheap: skips the kit's network pass on frames where nothing changed
+    if (sig === last) return;
+    last = sig;
     const items = buildRoadItems(src), keep = new Set(items.map(i => i.key));
     for (const [key, o] of views) if (!keep.has(key)) { scene.remove(o); views.delete(key); }
     for (const it of items) {
