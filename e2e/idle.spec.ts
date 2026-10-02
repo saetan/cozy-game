@@ -83,7 +83,7 @@ test('export then import restores the village; a bad file is rejected', async ({
   expect(dl.suggestedFilename()).toMatch(/^cozy-village-\d{4}-\d\d-\d\d\.json$/);
   const path = await dl.path();
   const saved = JSON.parse(await (await import('node:fs/promises')).readFile(path, 'utf8'));
-  expect(saved.version).toBe(1);
+  expect(saved.version).toBe(2);
   expect(saved.sim.residents).toHaveLength(3);
 
   // bad file: toast, game untouched

@@ -25,7 +25,8 @@ const demo = new URLSearchParams(location.search).has('demo'); // demo: always f
 const store = createIdbStore();
 const { game, away } = demo ? { game: createGame({ demo }), away: null } : await loadGame(store, Date.now());
 const { sim } = game;
-scene.add(createChunkView(sim.world).root);
+const chunks = createChunkView(sim.world);
+scene.add(chunks.root);
 const view = createSimView(scene, sim);
 
 const placement = createPlacementMode({
@@ -34,13 +35,14 @@ const placement = createPlacementMode({
   onPlace: (t, rotation, origin) => game.placeBuilding(t, rotation, origin).ok,
 });
 const tiles = createTileTool({ canvas, scene, camera, game, root: document.body, setPaintMode, onStart: () => selection.clear() });
+function centreOn(x: number, z: number) { // slide the camera so the focus lands on (x, z), keeping the view angle
+  const dx = x - controls.target.x, dz = z - controls.target.z;
+  controls.target.x += dx; controls.target.z += dz; camera.position.x += dx; camera.position.z += dz;
+}
 const selection = createSelection({
   canvas, camera, scene, game, root: document.body,
-  pick: ray => view.pick(ray), residentPosition: id => view.residentPosition(id),
-  centreOn(x, z) { // slide the camera so the focus lands on (x, z), keeping the view angle
-    const dx = x - controls.target.x, dz = z - controls.target.z;
-    controls.target.x += dx; controls.target.z += dz; camera.position.x += dx; camera.position.z += dz;
-  },
+  pick: ray => view.pick(ray), onLandBought: () => chunks.sync(), residentPosition: id => view.residentPosition(id),
+  centreOn,
   busy: () => placement.active || tiles.active,
 });
 document.querySelectorAll('.build-btn').forEach(b => b.addEventListener('click', () => selection.clear()));
@@ -95,6 +97,14 @@ onFrame(t => {
   selection.update();
 });
 
+// Dev-only cheat for playtesting: dropped from every build (dev server only, not e2e or production).
+if (import.meta.env.DEV) {
+  const add = document.createElement('button');
+  add.id = 'dev-coins'; add.textContent = '+1000 coins'; add.title = 'Dev only: add 1000 coins';
+  add.addEventListener('click', () => { sim.coins += 1000; });
+  document.getElementById('stats')!.append(add);
+}
+
 // Test hooks: only in dev and `vite build --mode e2e`. Vite folds this condition to false in a
 // normal production build, so the block (and the hook names) are dropped from dist/.
 if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
@@ -115,6 +125,8 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
     housePieceKeys: (id: number) => view.housePieceKeys(id),
     /** Number of scene objects with this name (e.g. selection ghost cells). */
     countNamed(name: string) { let n = 0; scene.traverse(o => { if (o.name === name) n++; }); return n; },
+    /** Slides the camera focus to a cell. */
+    centreOnCell: (x: number, z: number) => centreOn((x + 0.5) * CELL, (z + 0.5) * CELL),
     /** Projects a cell centre to page CSS pixels. */
     cellToScreen(x: number, z: number) {
       const v = new THREE.Vector3((x + 0.5) * CELL, 0, (z + 0.5) * CELL).project(camera);

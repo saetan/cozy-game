@@ -2,6 +2,7 @@
 import balance from '../data/balance.json';
 import { accessCell, findPath } from '../systems/pathfinding';
 import { pushEvent } from './events';
+import { stockTotal } from './crops';
 import type { Building, Cell, Job, JobKind, Resident, Role, SimState } from './state';
 
 export const URGENCY: JobKind[] = ['sell', 'haul', 'harvest', 'water', 'plant'];
@@ -33,13 +34,16 @@ export function syncPlot(sim: SimState, plot: Building): void {
   const want: JobKind | null =
     plot.plotState === 'empty' && room ? 'plant' :
     plot.plotState === 'thirsty' ? 'water' :
-    plot.plotState === 'ripe' && room ? 'harvest' : null;
+    plot.plotState === 'ripe' && room && (crates === 0 || (plot.crateCrop ?? plot.crop) === (plot.growCrop ?? plot.crop)) ? 'harvest' : null;
   if (want && !hasJob(sim, want, plot.id)) postJob(sim, want, plot.id);
   let pending = [...sim.jobs.values()].filter(j => j.kind === 'haul' && j.targetId === plot.id && !j.pickedUp).length;
   while (pending < crates) { postJob(sim, 'haul', plot.id); pending++; }
 }
+/** One sell job per stall (market level), never more than there are crates to sell. */
 export function syncMarket(sim: SimState, m: Building): void {
-  if ((m.stock ?? 0) > 0 && !hasJob(sim, 'sell', m.id)) postJob(sim, 'sell', m.id);
+  const want = Math.min(m.level, stockTotal(m));
+  let have = [...sim.jobs.values()].filter(j => j.kind === 'sell' && j.targetId === m.id).length;
+  while (have < want) { postJob(sim, 'sell', m.id); have++; }
 }
 
 /** Walk cost from a resident's cell to a job's first target, or null if the job is unreachable. */

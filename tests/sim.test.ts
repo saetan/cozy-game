@@ -220,9 +220,9 @@ describe('night', () => {
     const sim = village(1, 1);
     apply(sim, { type: 'setRole', residentId: 1, role: 'seller' });
     advance(sim, 0.8 * DAY_LENGTH - sim.t);
-    market(sim)!.stock = 1000; // far more than one evening can sell
+    market(sim)!.stock!.carrot = 1000; // far more than one evening can sell
     advance(sim, 0.9 * DAY_LENGTH - sim.t);
-    expect(market(sim)!.stock).toBeGreaterThan(0);
+    expect(market(sim)!.stock!.carrot).toBeGreaterThan(0);
     const r = res(sim), home = accessCell(sim.world, sim.buildings.get(r.homeId)!.placement)!;
     expect(r.jobId).toBeNull();
     advance(sim, 200);
