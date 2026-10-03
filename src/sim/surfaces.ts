@@ -54,10 +54,9 @@ export function isBend(c: Record<Side, boolean>): boolean {
 export const isLane = (k: TileKind | undefined): boolean => k === 'lane' || k === 'dirtLane';
 
 /**
- * Lane-to-street join rule. A lane cell may only touch a 6 m tile on a flat sidewalk edge, as the kit draws it:
- * the tile must be asphalt (a dirt road has no sidewalk to drop), the touched side must be a plain sidewalk edge
- * (a connection to another tile is a junction arm) and the tile must not be a bend (its outer sides are curved
- * sidewalk, with no dropped kerb). Returns the first violation, or null when every lane join is valid.
+ * Lane-to-street join rule. A lane cell may only touch a 6 m tile (street or dirt road) on a flat edge, as the kit
+ * draws it: the touched side must be a plain edge (a connection to another tile is a junction arm) and the tile must
+ * not be a bend (its outer sides are curved, with no room for a lane mouth). Returns the first violation, or null when every lane join is valid.
  */
 export function laneJoinProblem(streets: ReadonlyMap<string, StreetKind>, tiles: ReadonlyMap<string, TileKind>): string | null {
   for (const [k, kind] of tiles) {
@@ -67,7 +66,6 @@ export function laneJoinProblem(streets: ReadonlyMap<string, StreetKind>, tiles:
     for (const s of Object.keys(SIDES) as Side[]) {
       const [i, j] = streetTileOf(x + SIDES[s][0], z + SIDES[s][1]), t = streets.get(streetKey(i, j));
       if (!t) continue;
-      if (t === 'dirt') return 'a lane can only join an asphalt street';
       const conn = streetConn(streets, i, j); // the lane touches tile (i, j) on that tile's side OPP[s]
       if (conn[OPP[s]]) return 'a lane cannot join a street at a junction arm';
       if (isBend(conn)) return 'a lane cannot join the outer corner of a street bend';

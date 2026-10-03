@@ -4,12 +4,21 @@
 // Alignment: the kit tile grid already is the game grid. Street tile (i, j) is centred on (6i + 3, 6j + 3), the centre of
 // its 3x3 cells; a lane or path piece on cell (x, z) sits at ((x + 0.5) * 2, (z + 0.5) * 2). So ox = oz = 0.
 import * as THREE from 'three';
-import { CELL, ORDER, SIDE, buildLanes, buildRoads, pathTile, type RoadItem } from '../kit/index.js';
+import { CELL, DIRT_H, ORDER, ROAD_MAT, SIDE, TILE, buildLanes, buildRoads, grp, pathTile, type RoadItem } from '../kit/index.js';
 import type { SimState } from '../sim/state';
 import { cellKey } from '../sim/world';
 import { popIn } from './houseView';
 
 export interface RoadSource { streets: SimState['streets']; tiles: SimState['tiles'] }
+
+// A 6 m dirt road is 3.2 m wide (kit README), so a grass margin separates it from the tile edge where a lane arrives.
+// The kit's lane mouth is made for a street's sidewalk, so the game bridges that margin with a dirt spur.
+const DIRT_ROAD_HW = 1.6, SPUR_LEN = TILE / 2 - DIRT_ROAD_HW + 0.15, SPUR_W = 1.6;
+function dirtSpur(): THREE.Group { // authored for a lane arriving from the S edge, pointing N into the tile
+  const m = new THREE.Mesh(new THREE.BoxGeometry(SPUR_W, DIRT_H, SPUR_LEN), ROAD_MAT.dirt);
+  m.name = 'dirt_spur'; m.position.set(0, DIRT_H / 2, -SPUR_LEN / 2);
+  return grp('lane_dirt_spur', m);
+}
 
 /** Every piece the network needs, in kit terms. Pure: nothing is built until `make()`. */
 export function buildRoadItems(src: RoadSource): RoadItem[] {
@@ -19,8 +28,15 @@ export function buildRoadItems(src: RoadSource): RoadItem[] {
     const [x, z] = k.split(',').map(Number);
     if (kind === 'path') paths.add(k); else laneCells.push({ x, z, type: kind === 'lane' ? 'road' : 'dirt' });
   }
-  const lanes = buildLanes(laneCells, { streets: streets.filter(t => t.type === 'road'), ox: 0, oz: 0 });
+  const lanes = buildLanes(laneCells, { streets, ox: 0, oz: 0 });
   const items = [...buildRoads(streets, { ox: 0, oz: 0, cuts: lanes.cuts }), ...lanes.items];
+  for (const c of laneCells) for (const s of ORDER) {
+    const nx = c.x + SIDE[s][0], nz = c.z + SIDE[s][1];
+    if (src.streets.get(`${Math.floor(nx / 3)},${Math.floor(nz / 3)}`) !== 'dirt') continue;
+    // the spur starts on the shared edge and runs into the tile; SIDE[s][2] turns an S-authored piece to face side s
+    const ry = SIDE[s][2] + Math.PI, ex = (c.x + 0.5 + SIDE[s][0] / 2) * CELL, ez = (c.z + 0.5 + SIDE[s][1] / 2) * CELL;
+    items.push({ key: `dirtSpur:${c.x},${c.z}:${s}`, make: dirtSpur, x: ex, y: 0, z: ez, ry });
+  }
   for (const k of paths) {
     const [x, z] = k.split(',').map(Number), conn: Record<string, boolean> = {};
     for (const s of ORDER) if (paths.has(cellKey(x + SIDE[s][0], z + SIDE[s][1]))) conn[s] = true;

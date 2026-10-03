@@ -68,6 +68,7 @@ test('a dirt lane joins a street on a flat edge: lane mouth and dropped kerb; a 
   await tool(page, /^Street/);
   await click(page, tc(2, -5)); // would turn (2,-4) into a bend: its south side becomes an outer corner
   await expect(status(page)).toContainText('outer corner of a street bend');
+  await expect(status(page)).toHaveClass(/refused/); // shown in red, so it isn't missed
   expect(await game<number>(page, 's => s.sim.streets.size')).toBe(4);
 });
 
@@ -92,6 +93,18 @@ test('a dirt road joins a street', async ({ page }) => {
   await tool(page, /^Dirt road/); await click(page, tc(1, -4));
   expect(await roadKeys(page)).toEqual(['road:0,-4:road:-d--', 'road:1,-4:dirt:---r']);
   expect(await coins(page)).toBe(1080 - 18 - 9);
+});
+
+test('a dirt lane and a dirt road join, whichever is laid first; a dirt spur bridges the road\'s grass margin', async ({ page }) => {
+  await start(page, [7, -9]);
+  await tool(page, /^Dirt lane/); await drag(page, [4, -16], [4, -13]); await done(page); // runs south to the tile edge
+  await tool(page, /^Dirt road/); await drag(page, tc(0, -4), tc(2, -4));                  // the lane meets tile (1,-4) on its flat north side
+  await expect(status(page)).not.toHaveClass(/refused/);
+  expect(await game<number>(page, 's => s.sim.streets.size')).toBe(3);
+  expect((await keys(page)).filter(k => k.startsWith('dirtSpur:'))).toEqual(['dirtSpur:4,-13:S']);
+  await done(page);
+  await tool(page, /^Dirt lane/); await drag(page, [7, -9], [7, -6]); // dirt road first, then a lane up to the south side of tile (2,-4)
+  expect((await keys(page)).filter(k => k.startsWith('dirtSpur:'))).toEqual(['dirtSpur:4,-13:S', 'dirtSpur:7,-9:N']);
 });
 
 test('a path auto-connects to its neighbours', async ({ page }) => {

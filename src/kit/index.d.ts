@@ -70,7 +70,9 @@ export function rng(seed: number): () => number;
 export function pick<T>(r: () => number, o: Record<string, T>): T;
 
 // Roads & paths add-on (roads.js) and 2 m lanes add-on (lanes.js)
-export const TILE: number, ROAD_CELLS: number;
+export const TILE: number, ROAD_CELLS: number, DIRT_H: number;
+/** Road materials (asphalt, dirt, rut, kerb, …) shared by the road and lane pieces. */
+export const ROAD_MAT: Record<string, THREE.Material>;
 export const ORDER: readonly ('N' | 'E' | 'S' | 'W')[];
 export const SIDE: Record<'N' | 'E' | 'S' | 'W', [number, number, number]>;
 export type RoadConn = Partial<Record<'N' | 'E' | 'S' | 'W', string | boolean>>;

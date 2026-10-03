@@ -90,11 +90,15 @@ describe('lane to street join rule', () => {
     const t = rich(); street(t, [[0, 0], [1, 0], [2, 0], [1, -1]]); // T: stem north, flat side south
     expect(reason(tile(t, [[4, 3]], 'lane'))).toBeNull();
   });
-  it('is refused at a street cell (a junction arm is always another street tile) and at a dirt road', () => {
+  it('is refused at a street cell (a junction arm is always another street tile)', () => {
     const sim = rich(); street(sim, [[0, 0], [1, 0]]);
     expect(reason(tile(sim, [[4, 1]], 'dirtLane'))).toContain('street');
-    street(sim, [[0, 5]], 'dirt');
-    expect(reason(tile(sim, [[1, 14]], 'dirtLane'))).toContain('asphalt');
+  });
+  it('joins a dirt road on a flat edge, both ways round (lane first or dirt road first)', () => {
+    const sim = rich(); street(sim, [[0, 5]], 'dirt');
+    expect(reason(tile(sim, [[1, 14]], 'dirtLane'))).toBeNull();
+    const t = rich(); tile(t, [[9, 4], [10, 4], [11, 4]], 'dirtLane');
+    expect(reason(street(t, [[4, 1]], 'dirt'))).toBeNull();
   });
   it("is refused on the outer corner of a bend", () => {
     const sim = rich(); street(sim, [[1, 1], [2, 1], [1, 2]]); // tile (1,1) bends east/south
@@ -108,7 +112,7 @@ describe('lane to street join rule', () => {
     const before = JSON.stringify([...sim.streets]);
     expect(reason(street(sim, [[1, -1]]))).toContain('bend'); // (1,0) would bend west/north
     expect(JSON.stringify([...sim.streets])).toBe(before);
-    expect(reason(street(sim, [[1, 0]], 'dirt'))).toContain('asphalt'); // switching to a dirt road would too
+    expect(reason(street(sim, [[1, 0]], 'dirt'))).toBeNull(); // switching to a dirt road keeps the flat join
     const t = rich(); street(t, [[0, 0], [1, 0], [2, 0], [1, -1]]); tile(t, [[3, 3]], 'lane');
     const r = tile(t, [[7, 1]], null); // erase (2,0): (1,0) would become a bend
     expect(reason(r)).toContain('cannot erase'); expect(t.streets.size).toBe(4);
@@ -212,6 +216,16 @@ describe('road rendering matches the sim', () => {
     const box = new THREE.Box3().setFromObject(o), c = box.getCenter(new THREE.Vector3());
     expect(c.x).toBeCloseTo(-9, 1); expect(c.z).toBeCloseTo(9, 1);
     expect(box.max.x - box.min.x).toBeCloseTo(6, 1);
+  });
+  it('a lane at a dirt road gets a dirt spur from the shared edge into the tile (none at a street)', () => {
+    const s = rich(); street(s, [[3, 1], [4, 1], [5, 1]], 'dirt'); street(s, [[3, -3]]);
+    tile(s, [[13, 1], [13, 2]], 'dirtLane'); tile(s, [[10, -6], [10, -7]], 'dirtLane'); // the second meets the street (3,-3) from the south
+    const spurs = buildRoadItems(s).filter(i => i.key.startsWith('dirtSpur:'));
+    expect(spurs.map(i => i.key)).toEqual(['dirtSpur:13,2:S']);
+    const o = spurs[0].make(); o.position.set(spurs[0].x, 0, spurs[0].z); o.rotation.y = spurs[0].ry; o.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(o);
+    expect(box.min.z).toBeCloseTo(6, 1); // starts on the edge between the lane cell (z 2) and the tile (z 3..5)
+    expect(box.max.z).toBeGreaterThan(6 + 1.4); // reaches past the grass margin onto the 3.2 m dirt surface
   });
   it('keys change only where the neighbourhood changed (diff by key)', () => {
     const before = new Set(items.map(i => i.key));

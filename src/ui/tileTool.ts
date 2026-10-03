@@ -62,6 +62,9 @@ export function createTileTool(d: TileToolDeps) {
   const costKey = () => tool as CostKey;
   const hint = () => tool === 'erase' ? 'Tap or drag to erase (a street or dirt road tile goes whole; no refund)' :
     `Tap or drag to lay ${LABEL[tool!]} tiles · ${costOf(costKey()).coins} coin${costOf(costKey()).coins === 1 ? '' : 's'} each`;
+  let flashTimer: ReturnType<typeof setTimeout> | undefined;
+  /** A refused tap: show the reason in red for a moment, so it isn't missed. */
+  const flash = () => { status.classList.add('refused'); clearTimeout(flashTimer); flashTimer = setTimeout(() => status.classList.remove('refused'), 1800); };
   const say = (reason: string | null) => { status.textContent = reason === null ? hint() : reason === 'not enough coins' ? 'Not enough coins' : reason.charAt(0).toUpperCase() + reason.slice(1); };
 
   /** Why the pointed cell or tile cannot take the current tool (null = ok). */
@@ -89,6 +92,7 @@ export function createTileTool(d: TileToolDeps) {
         : isStreetTool(tool) ? game.apply({ type: 'setStreet', tiles: [cell], kind: STREET_KIND[tool] })
         : game.apply({ type: 'setTile', cells: [cell], kind: tool as TileKind });
       say(res.ok ? null : res.reason);
+      if (!res.ok) flash();
     }
     last = c; mark(c, false);
   }
