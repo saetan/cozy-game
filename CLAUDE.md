@@ -17,7 +17,7 @@ Read before changing code:
 
 1. **Layers:** input → commands → sim → render/UI (read-only). `src/sim/` never imports three.js, the kit, `render/` or `ui/`, and never reads the clock or `Math.random`.
 2. **Numbers and rule options live in `src/data/balance.json`,** read through the owning module's accessor.
-3. **One rule, one module, a small interface.** Do not spread a rule across files. `src/sim/traffic.ts` is the model (it arrives with the traffic PR).
+3. **One rule, one module, a small interface.** Do not spread a rule across files. `src/sim/traffic.ts` is the model.
 4. **Rule variants are named config options** when at least two variants make sense.
 5. **Determinism:** one big step equals many small steps; a save round trip equals an uninterrupted run. Cover new state in those tests.
 6. **A change to `SimState` needs a save migration** and tests from every older version.

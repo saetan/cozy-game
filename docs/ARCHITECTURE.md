@@ -35,7 +35,7 @@ player input ──► commands ──► SIM (rules, state) ──► render / 
 | `jobs.ts` | The job board: which jobs exist and who picks which |
 | `economy.ts` | What residents do step by step: schedule, walking legs, job steps and their effects |
 | `vehicles.ts` | Which vehicle a resident takes for a leg |
-| `traffic.ts` | Lane traffic: segments, capacity, waiting. The model for a rule module (see below). Arrives with the traffic PR |
+| `traffic.ts` | Lane traffic: segments, capacity, waiting. The model for a rule module (see below). |
 | `surfaces.ts` | Road surfaces, the 6 m street grid and the lane-join rule |
 | `crops.ts`, `traits.ts`, `decor.ts`, `levels.ts`, `costs.ts`, `clock.ts` | Small lookups over `balance.json` |
 

@@ -13,10 +13,8 @@ import type { Reservation, SimState, TileKind, VehicleKind } from './state';
 // ---- config: one accessor, overridable per test --------------------------------------------------------------------
 export type WhenBusy = 'wait' | 'waitOrWalk' | 'ignore';
 export interface LaneRule { capacity: number | null; appliesTo: VehicleKind[]; whenBusy: WhenBusy; maxWaitSeconds: number }
-export interface TrafficConfig {
-  lane: LaneRule; dirtLane: LaneRule;
-  street: { capacity: number | null }; dirtRoad: { capacity: number | null }; // reserved: only lanes are limited so far
-}
+/** Only lanes are limited. 6 m streets and dirt roads have two lanes, so they have no setting until street traffic exists. */
+export interface TrafficConfig { lane: LaneRule; dirtLane: LaneRule }
 export type TrafficOverride = { [K in keyof TrafficConfig]?: Partial<TrafficConfig[K]> };
 
 const DEFAULTS = balance.traffic as unknown as TrafficConfig;
@@ -27,7 +25,6 @@ export const trafficConfig = (): TrafficConfig => override ?? DEFAULTS;
 export function setTrafficConfig(o: TrafficOverride | null): void {
   override = o && {
     lane: { ...DEFAULTS.lane, ...o.lane }, dirtLane: { ...DEFAULTS.dirtLane, ...o.dirtLane },
-    street: { ...DEFAULTS.street, ...o.street }, dirtRoad: { ...DEFAULTS.dirtRoad, ...o.dirtRoad },
   };
 }
 /** An "everything off" config, for tests that compare against the unlimited behaviour. */

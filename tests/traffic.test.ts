@@ -35,7 +35,7 @@ const carPath = (sim: SimState, a: Cell, b: Cell, k: VehicleKind = 'car') => fin
 describe('config accessor', () => {
   it('reads balance.json by default and can be overridden per test', () => {
     expect(trafficConfig().lane).toMatchObject({ capacity: 1, whenBusy: 'waitOrWalk', maxWaitSeconds: 30 });
-    expect(trafficConfig().street.capacity).toBeNull();
+    expect(Object.keys(trafficConfig()).sort()).toEqual(['dirtLane', 'lane']); // only lanes have settings
     setTrafficConfig({ lane: { capacity: 3 } });
     expect(trafficConfig().lane.capacity).toBe(3);
     expect(trafficConfig().lane.whenBusy).toBe('waitOrWalk'); // merged over the defaults
