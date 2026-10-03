@@ -26,8 +26,9 @@ export interface Building {
 }
 export interface Task {
   kind: 'job' | 'home' | 'idle';
-  action: 'walk' | 'work' | 'water' | 'carry' | 'sell' | 'stand';
+  action: 'walk' | 'work' | 'water' | 'carry' | 'sell' | 'stand' | 'wait';
   path?: Cell[]; cum?: number[];                   // cum[i] = fraction of walk time elapsed on arriving at path[i]
+  waitUntil?: number;                              // path legs: on arrival, wait on the vehicle until then (lane traffic), then re-plan
   start: number; end: number;
 }
 export interface Resident {
@@ -40,6 +41,8 @@ export interface Resident {
 export type LogEntry =
   | { t: number; kind: 'arrival'; residentId: number; houseId: number }
   | { t: number; kind: 'levelUp'; houseId: number; level: number };
+/** A vehicle holds `segment` (a lane segment id, see sim/traffic.ts) during [from, to). */
+export interface Reservation { segment: string; residentId: number; from: number; to: number }
 export interface Job { id: number; kind: JobKind; targetId: number; claimedBy: number | null; pickedUp: boolean }
 export interface Stats { harvested: number; delivered: number; sold: number; earned: number }
 
@@ -51,6 +54,7 @@ export interface SimState {
   residents: Map<number, Resident>;
   coins: number;
   unlockedCrops: string[]; chunksBought: number;
+  reservations: Reservation[];    // lane traffic (sim/traffic.ts)
   jobs: Map<number, Job>; nextJobId: number; nextResidentId: number;
   dispatchPending: boolean;
   queue: EventQueue;
@@ -61,7 +65,7 @@ export interface SimState {
 export function newState(seed: number, t0: number, worldConfig?: WorldConfig): SimState {
   return {
     t: t0, rng: seed >>> 0, world: createWorld(worldConfig), tiles: new Map(), streets: new Map(),
-    buildings: new Map(), residents: new Map(), coins: balance.startingCoins,
+    buildings: new Map(), residents: new Map(), reservations: [], coins: balance.startingCoins,
     unlockedCrops: [balance.defaultCrop], chunksBought: 0,
     jobs: new Map(), nextJobId: 1, nextResidentId: 1, dispatchPending: false,
     queue: createEventQueue(), stats: { harvested: 0, delivered: 0, sold: 0, earned: 0 }, log: [],
