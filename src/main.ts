@@ -19,6 +19,7 @@ import { dayOf, timeOfDay } from './sim/clock';
 import { CELL } from './kit/index.js';
 import { advance } from './sim/sim';
 import { peekEvent } from './sim/events';
+import { setTrafficConfig, type TrafficOverride } from './sim/traffic';
 import { streetAt } from './sim/surfaces';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -121,6 +122,8 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
     savedAt: async () => (await store.load())?.savedAt ?? null,
     /** Rewrites the stored savedAt to `ms` earlier (simulates time away). */
     async backdateSave(ms: number) { const d = await store.load(); if (d) { d.savedAt -= ms; await store.save(d); } },
+    /** Overrides lane traffic rules (merged over balance.json); null restores the defaults. */
+    setTraffic: (o: TrafficOverride | null) => setTrafficConfig(o),
     /** Test-only coin grant (the sim has no such command, on purpose). */
     giveCoins: (n: number) => { sim.coins += n; },
     /** Keys of the road pieces currently rendered (streets, lanes, lane mouths, paths), sorted. */

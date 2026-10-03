@@ -51,6 +51,10 @@
       }
     }
   },
+  "traffic": {
+    "lane": { "capacity": 1, "appliesTo": ["wagon", "car"], "whenBusy": "waitOrWalk", "maxWaitSeconds": 30 },
+    "dirtLane": { "capacity": 1, "appliesTo": ["wagon", "car"], "whenBusy": "waitOrWalk", "maxWaitSeconds": 30 }
+  },
   "scarecrow": {
     "radius": 2,
     "growthMultiplier": 1.1

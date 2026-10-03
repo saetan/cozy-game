@@ -18,6 +18,8 @@ interface RView { obj: THREE.Group; action: string; phase: number; x: number; z:
 
 /** Kit pose while riding, and where each parked vehicle sits relative to its house's access cell: [dx, dz, yaw] in metres / radians. */
 const RIDE_POSE: Record<VehicleKind, string> = { bicycle: 'ride', wagon: 'push', car: 'sit' };
+/** Pose of a rider waiting at a lane entrance. */
+const WAIT_POSE: Record<VehicleKind, string> = { bicycle: 'stand', wagon: 'stand', car: 'sit' };
 const PARK: Record<VehicleKind, [number, number, number]> = { bicycle: [-0.55, -0.5, 1.2], wagon: [0.6, -0.5, -0.3], car: [0, 0.75, Math.PI / 2] };
 
 export function createSimView(scene: THREE.Scene, sim: SimState) {
@@ -103,10 +105,10 @@ export function createSimView(scene: THREE.Scene, sim: SimState) {
       v.ride = ride;
     }
     const jobKind = r.jobId !== null ? sim.jobs.get(r.jobId)?.kind : undefined;
-    const act = r.vehicle && ride ? RIDE_POSE[r.vehicle] : kitAction(r.task, jobKind, t);
+    const act = r.vehicle && ride ? (r.task?.action === 'wait' ? WAIT_POSE : RIDE_POSE)[r.vehicle] : kitAction(r.task, jobKind, t);
     if (act !== v.action) { setAction(v.obj, act); v.action = act; }
     let target = facingAngle(pos.x - v.x, pos.z - v.z);
-    if (target === null && r.task && r.task.action !== 'stand' && r.task.action !== 'walk' && r.jobId !== null) {
+    if (target === null && r.task && r.task.action !== 'stand' && r.task.action !== 'wait' && r.task.action !== 'walk' && r.jobId !== null) {
       const job = sim.jobs.get(r.jobId), tb = job && sim.buildings.get(job.targetId);
       if (tb) { const c = buildingCentre(tb); target = facingAngle(c.x - pos.x, c.z - pos.z); }
     }

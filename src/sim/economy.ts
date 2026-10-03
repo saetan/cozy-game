@@ -7,6 +7,7 @@ import { cropInfo, nextSale, stockTotal } from './crops';
 import { claimJob, completeJob, market, pickJob, ROLE_OF, syncMarket, syncPlot } from './jobs';
 import { carryCapacity, traitSpeed, workDelay } from './traits';
 import { growthMultiplier } from './decor';
+import { reserve } from './traffic';
 import { freeVehicles, planLeg, vehicleInfo } from './vehicles';
 import type { Building, Cell, Job, Resident, SimState, Task, VehicleKind } from './state';
 
@@ -34,7 +35,9 @@ function walk(sim: SimState, r: Resident, to: Cell, kind: Task['kind'], action: 
   const p = planLeg(sim, r, r.cell, to, prefer);
   if (!p) return false;
   r.vehicle = p.vehicle;
-  startTask(sim, r, { kind, action, path: p.cells, cum: p.cum, start: sim.t, end: sim.t + travelTime(p.cost) });
+  if (p.entry) reserve(sim, r.id, p.entry);
+  const waitUntil = p.entry?.kind === 'wait' ? p.entry.resumeAt : undefined; // lane busy: ride to its entrance, then wait
+  startTask(sim, r, { kind, action, path: p.cells, cum: p.cum, start: sim.t, end: sim.t + travelTime(p.cost), ...(waitUntil !== undefined && { waitUntil }) });
   return true;
 }
 const homeAccess = (sim: SimState, r: Resident): Cell | null => {
@@ -142,7 +145,15 @@ function pickupExtra(sim: SimState, plot: Building, own: Job, room: number): num
 
 function onResidentEvent(sim: SimState, r: Resident): void {
   const done = r.task;
-  if (done?.path) { r.cell = done.path[done.path.length - 1]; r.vehicle = null; }
+  if (done?.action === 'wait') { r.task = null; r.vehicle = null; step(sim, r); return; } // the lane has cleared: re-plan from here
+  if (done?.path) {
+    r.cell = done.path[done.path.length - 1];
+    if (done.waitUntil !== undefined) { // at the lane entrance: wait on the vehicle (still claimed)
+      startTask(sim, r, { kind: done.kind, action: 'wait', start: sim.t, end: done.waitUntil });
+      return;
+    }
+    r.vehicle = null;
+  }
   r.task = null;
   if (done?.kind === 'job' && !done.path && r.jobId !== null) {
     // a work task finished (carry-walks have a path and are handled above)
