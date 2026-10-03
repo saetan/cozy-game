@@ -28,3 +28,13 @@ Closes #
 - [ ] **Existing control behaviour is covered**: existing tests still pass, and behaviour that must not change is protected by a test
 - [ ] **UI proof is attached when relevant**: screenshot or recording for any visible change
 - [ ] **A fresh reviewer or agent reviewed the diff**: someone other than the author (name the reviewer)
+
+## Architecture check
+
+<!-- See docs/ARCHITECTURE.md. Tick what holds; for anything that doesn't, fix it here or link a new issue labelled `architecture` or `tech-debt`. Write "N/A: <reason>" for docs-only or CI-only PRs. -->
+
+- [ ] **Numbers and rule options are in `balance.json`**, not in code
+- [ ] **Each rule lives in one module** behind a small interface; nothing reaches around it
+- [ ] **Layers hold**: the sim imports no rendering or clock; render and UI don't change sim state
+- [ ] **State changes have a save migration**, and determinism tests cover the new state
+- [ ] **Follow-ups are tracked**: new weaknesses have issues linked from #30

@@ -12,6 +12,8 @@ npm run dev
 - `src/kit/index.js` — the game's single import point for the kit (+ `index.d.ts` types)
 - `design/kit/` — Claude Design handoff, vendored untouched: kit modules, README with conventions & design tokens, interactive reference pages. See `design/README.md` for the version and upgrade checklist.
 - `docs/GAME_DESIGN.md` — game direction, decisions and milestones
+- `docs/ARCHITECTURE.md` — layers, principles for keeping the code modular and configurable, known weaknesses (tracked in issue #30)
+- `CLAUDE.md` — short rules for coding agents
 
 ## Tests
 
