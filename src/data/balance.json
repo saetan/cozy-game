@@ -9,7 +9,10 @@
     "speed": {
       "grass": 2,
       "path": 3,
-      "road": 3
+      "street": 3,
+      "dirtRoad": 2.5,
+      "lane": 2.5,
+      "dirtLane": 2.5
     }
   },
   "vehicles": {
@@ -17,8 +20,11 @@
       "houseLevel": 2,
       "speed": {
         "grass": 2,
-        "path": 3.5,
-        "road": 4.5
+        "path": 2,
+        "street": 4.5,
+        "dirtRoad": 3.5,
+        "lane": 4,
+        "dirtLane": 3.5
       }
     },
     "wagon": {
@@ -26,16 +32,22 @@
       "carry": 3,
       "speed": {
         "grass": 2,
-        "path": 2.5,
-        "road": 3
+        "path": 2,
+        "street": 3,
+        "dirtRoad": 2.5,
+        "lane": 3,
+        "dirtLane": 2.5
       }
     },
     "car": {
       "houseLevel": 4,
       "speed": {
         "grass": 2,
-        "path": 3.5,
-        "road": 8
+        "path": 2,
+        "street": 8,
+        "dirtRoad": 4,
+        "lane": 5,
+        "dirtLane": 3.5
       }
     }
   },
@@ -162,8 +174,17 @@
     "path": {
       "coins": 1
     },
-    "road": {
+    "lane": {
       "coins": 2
+    },
+    "dirtLane": {
+      "coins": 1
+    },
+    "street": {
+      "coins": 18
+    },
+    "dirtRoad": {
+      "coins": 9
     },
     "shrub": {
       "coins": 5

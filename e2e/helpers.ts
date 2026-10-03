@@ -35,3 +35,13 @@ export async function houseCentre(page: Page, id: number) {
 }
 export const simState = <T>(page: Page, fn: string): Promise<T> =>
   page.evaluate(`(${fn})(window.__game.sim)`) as Promise<T>;
+
+/** page.clock keeps flowing in real time by default, so on slow CI renderers the sim would run on between steps.
+ *  Pause it a moment ahead (at most one clamped frame); retry if that moment has already passed. */
+export async function pauseClock(page: Page) {
+  for (let i = 0; i < 5; i++) {
+    try { await page.clock.pauseAt(await page.evaluate(() => Date.now() + 250)); return; }
+    catch (e) { if (!String(e).includes('past')) throw e; }
+  }
+  throw new Error('could not pause page.clock');
+}

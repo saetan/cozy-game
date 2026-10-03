@@ -2,6 +2,8 @@
 import balance from '../data/balance.json';
 import { findPath, WALKING, type Cell, type PathResult, type SpeedTable } from '../systems/pathfinding';
 import type { Resident, SimState, VehicleKind } from './state';
+import { surfaceLookup } from './surfaces';
+
 
 export const VEHICLES = Object.keys(balance.vehicles) as VehicleKind[]; // tie-break order
 export const vehicleInfo = (k: VehicleKind) => balance.vehicles[k] as { houseLevel: number; carry?: number; speed: SpeedTable };
@@ -22,13 +24,13 @@ export interface Leg extends PathResult { vehicle: VehicleKind | null }
 /** Fastest way for a resident to cover a leg: walking, or any free vehicle (ties: walk, then bicycle, wagon, car).
  *  `prefer` takes that vehicle whenever it is free, however slow. Null when unreachable. */
 export function planLeg(sim: SimState, r: Resident, from: Cell, to: Cell, prefer?: VehicleKind): Leg | null {
-  const walk = findPath(sim.world, sim.tiles, from, to, WALKING);
+  const walk = findPath(sim.world, surfaceLookup(sim), from, to, WALKING);
   if (!walk) return null;
   const free = freeVehicles(sim, r);
   const pref = prefer && free.includes(prefer) ? prefer : null;
   let best: Leg = { ...walk, vehicle: null };
   for (const k of pref ? [pref] : free) {
-    const p = findPath(sim.world, sim.tiles, from, to, vehicleInfo(k).speed)!;
+    const p = findPath(sim.world, surfaceLookup(sim), from, to, vehicleInfo(k).speed)!;
     if (pref || p.cost < best.cost) best = { ...p, vehicle: k };
   }
   return best;

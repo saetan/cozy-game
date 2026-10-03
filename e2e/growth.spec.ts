@@ -140,11 +140,11 @@ test('dragging with the Path tool paints tiles and charges coins; Erase removes 
   await expect(page.locator('#coins')).toHaveText('77');
   // the left-drag painted instead of orbiting the camera
   expect(await cellToScreen(page, 3, 3)).toEqual(camBefore);
-  // Road tool, then Erase
+  // Lane tool, then Erase
   await page.getByRole('button', { name: 'Done' }).click();
-  await page.getByRole('button', { name: /^Road/ }).click();
+  await page.getByRole('button', { name: /^Lane/ }).click();
   await page.mouse.click(a.x, a.y);
-  expect(await game<string>(page, 's => s.sim.tiles.get("3,3")')).toBe('road');
+  expect(await game<string>(page, 's => s.sim.tiles.get("3,3")')).toBe('lane');
   expect(await game<number>(page, 's => s.sim.coins')).toBe(75);
   await page.getByRole('button', { name: 'Done' }).click();
   await page.getByRole('button', { name: 'Erase tile' }).click();
@@ -157,12 +157,17 @@ test('unaffordable tools are disabled and costs are shown', async ({ page }) => 
   await openGame(page);
   await expect(page.getByRole('button', { name: /Build House/ })).toContainText('50');
   await expect(page.getByRole('button', { name: /^Path/ })).toContainText('1');
-  await expect(page.getByRole('button', { name: /^Road/ })).toContainText('2');
+  await expect(page.getByRole('button', { name: /^Lane/ })).toContainText('2');
+  await expect(page.getByRole('button', { name: /^Street/ })).toContainText('18');
+  await expect(page.getByRole('button', { name: /^Dirt road/ })).toContainText('9');
+  await expect(page.getByRole('button', { name: /^Dirt lane/ })).toContainText('1');
   await page.evaluate(() => { (window as any).__game.sim.coins = 10; });
   await page.clock.runFor(100);
   await expect(page.getByRole('button', { name: /Build House/ })).toBeDisabled();
   await expect(page.getByRole('button', { name: /Build Farm plot/ })).toBeDisabled();
   await expect(page.getByRole('button', { name: /^Path/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /^Street/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /^Dirt lane/ })).toBeEnabled();
 });
 
 test('screenshot: selected house with the level-up panel and next-level ghost cells', async ({ page }, testInfo) => {

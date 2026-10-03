@@ -3,7 +3,7 @@
 // Place button confirms (no hover-only info anywhere).
 import * as THREE from 'three';
 import { CELL, M } from '../kit/index.js';
-import { canPlace, rotatedCells, type Footprint, type Frame, type Rotation } from '../systems/placement';
+import { canPlace, rotatedCells, worldCells, type Footprint, type Frame, type Rotation } from '../systems/placement';
 import type { World } from '../sim/world';
 import { poseFootprint, setHousePose } from '../render/houseView';
 import type { BuildingType } from '../sim/state';
@@ -15,6 +15,8 @@ export interface PlacementDeps {
   scene: THREE.Scene;
   camera: THREE.Camera;
   world: World;
+  /** Extra cells buildings cannot go on (streets and dirt roads); the sim enforces it too. */
+  isBlocked?: (x: number, z: number) => boolean;
   footprintOf: (t: BuildingType) => Footprint;
   /** Fixed rotation frame for types that grow in place (houses). */
   frameOf?: (t: BuildingType) => Frame | undefined;
@@ -59,7 +61,7 @@ export function createPlacementMode(d: PlacementDeps) {
     const w = Math.max(...cells.map(c => c[0])) + 1 - x0, h = Math.max(...cells.map(c => c[1])) + 1 - z0;
     const ox = cell[0] - x0 - Math.floor(w / 2), oz = cell[1] - z0 - Math.floor(h / 2);
     anchor = [ox, oz];
-    valid = canPlace(d.world, footprint, rotation, ox, oz, frame);
+    valid = canPlace(d.world, footprint, rotation, ox, oz, frame) && !(d.isBlocked && worldCells(footprint, rotation, ox, oz, frame).some(([x, z]) => d.isBlocked!(x, z)));
     ghostMat.color.set(valid ? OK : BAD);
     setHousePose(ghost, poseFootprint({ footprint, frame }), rotation, ox, oz);
     ghost.visible = true;

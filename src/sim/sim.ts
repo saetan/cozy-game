@@ -38,6 +38,7 @@ export function snapshot(sim: SimState) {
       occupied: sortBy([...sim.world.occupied.entries()], e => e[0]),
     },
     tiles: [...sim.tiles.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)),
+    streets: [...sim.streets.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)),
     log: sim.log,
     buildings: [...sim.buildings.values()],
     residents: [...sim.residents.values()],

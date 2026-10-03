@@ -19,6 +19,7 @@ import { dayOf, timeOfDay } from './sim/clock';
 import { CELL } from './kit/index.js';
 import { advance } from './sim/sim';
 import { peekEvent } from './sim/events';
+import { streetAt } from './sim/surfaces';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const { scene, camera, controls, setPaintMode, onFrame } = createScene(canvas);
@@ -31,7 +32,7 @@ scene.add(chunks.root);
 const view = createSimView(scene, sim);
 
 const placement = createPlacementMode({
-  canvas, scene, camera, world: sim.world, root: document.body, footprintOf, frameOf,
+  canvas, scene, camera, world: sim.world, root: document.body, footprintOf, frameOf, isBlocked: (x, z) => !!streetAt(sim, x, z),
   createGhost: (t, mat) => createBuildingObject(t, mat),
   onPlace: (t, rotation, origin) => game.placeBuilding(t, rotation, origin).ok,
 });
@@ -122,6 +123,8 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') {
     async backdateSave(ms: number) { const d = await store.load(); if (d) { d.savedAt -= ms; await store.save(d); } },
     /** Test-only coin grant (the sim has no such command, on purpose). */
     giveCoins: (n: number) => { sim.coins += n; },
+    /** Keys of the road pieces currently rendered (streets, lanes, lane mouths, paths), sorted. */
+    roadKeys: () => view.roadPieces(),
     /** Plan-piece keys currently rendered for a house. */
     housePieceKeys: (id: number) => view.housePieceKeys(id),
     /** Number of scene objects with this name (e.g. selection ghost cells). */

@@ -8,7 +8,7 @@ import { rotatedCells, type Placement } from './placement';
 export const CELL = 2; // metres per cell (kit-independent copy)
 export type Cell = [number, number];
 export interface PathResult { cells: Cell[]; cost: number; cum: number[] }
-/** Metres per second by surface ('grass' is the default; add a surface by adding a key here and a TileKind). */
+/** Metres per second by surface ('grass' is the default; add a surface by adding a key here, a Surface and a rule in sim/surfaces.ts). */
 export type SpeedTable = Readonly<Record<string, number>>;
 export type TileLookup = { has(key: string): boolean; get?(key: string): string | undefined };
 

@@ -6,6 +6,7 @@ import { HOUSE_FRAME, HOUSE_MAX_LEVEL, houseCells } from '../src/sim/houses';
 import { syncMarket, syncPlot } from '../src/sim/jobs';
 import { cellKey } from '../src/sim/world';
 import { findPath } from '../src/systems/pathfinding';
+import { surfaceLookup } from '../src/sim/surfaces';
 import { placementCells, rotateInFrame, rotatedFrame } from '../src/systems/placement';
 import type { Rotation } from '../src/systems/placement';
 import type { TraitId } from '../src/sim/state';
@@ -274,13 +275,13 @@ describe('traits', () => {
 
 describe('tiles', () => {
   const village = () => { const sim = createSim({ seed: 1 }); sim.coins = 100; return sim; };
-  it('place path/road with per-tile cost; remove without refund', () => {
+  it('place path/lane with per-tile cost; remove without refund', () => {
     const sim = village();
     expect(apply(sim, { type: 'setTile', cells: [[0, 0], [1, 0], [2, 0]], kind: 'path' }).ok).toBe(true);
     expect(sim.coins).toBe(100 - 3 * balance.costs.path.coins);
-    expect(apply(sim, { type: 'setTile', cells: [[1, 0]], kind: 'road' }).ok).toBe(true);
-    expect(sim.tiles.get('1,0')).toBe('road');
-    expect(sim.coins).toBe(97 - balance.costs.road.coins);
+    expect(apply(sim, { type: 'setTile', cells: [[1, 0]], kind: 'lane' }).ok).toBe(true);
+    expect(sim.tiles.get('1,0')).toBe('lane');
+    expect(sim.coins).toBe(97 - balance.costs.lane.coins);
     const c = sim.coins;
     apply(sim, { type: 'setTile', cells: [[0, 0]], kind: 'path' }); // same kind: free no-op
     expect(sim.coins).toBe(c);
@@ -306,14 +307,14 @@ describe('tiles', () => {
     apply(sim, { type: 'placeBuilding', building: 'farmPlot', rotation: 0, origin: [3, 3] });
     expect(sim.tiles.has('3,3')).toBe(false);
   });
-  it('paths and roads both speed walking', () => {
+  it('paths and lanes both speed walking', () => {
     const sim = village();
-    const bare = findPath(sim.world, sim.tiles, [0, 0], [6, 0])!.cost;
+    const bare = findPath(sim.world, surfaceLookup(sim), [0, 0], [6, 0])!.cost;
     apply(sim, { type: 'setTile', cells: [[1, 0], [2, 0], [3, 0]], kind: 'path' });
-    apply(sim, { type: 'setTile', cells: [[4, 0], [5, 0], [6, 0]], kind: 'road' });
-    const fast = findPath(sim.world, sim.tiles, [0, 0], [6, 0])!.cost;
+    apply(sim, { type: 'setTile', cells: [[4, 0], [5, 0], [6, 0]], kind: 'lane' });
+    const fast = findPath(sim.world, surfaceLookup(sim), [0, 0], [6, 0])!.cost;
     expect(bare).toBe(6);
-    expect(fast).toBeCloseTo(6 / balance.pathSpeedMultiplier);
+    expect(fast).toBeCloseTo(3 / balance.pathSpeedMultiplier + (3 * balance.walkSpeed) / balance.walking.speed.lane);
   });
   it('snapshot includes tiles deterministically', () => {
     const a = village(), b = village();
