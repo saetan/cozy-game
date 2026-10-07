@@ -121,7 +121,8 @@ describe('loadGame', () => {
     const stored = { version: SAVE_VERSION + 995, savedAt: 7, sim: { whatever: 1 } } as never;
     const store = createMemoryStore(stored);
     const r = await loadGame(store, 0);
-    expect(r).toEqual({ ok: false, reason: 'unsupported-version', data: stored });
+    expect(r).toMatchObject({ ok: false, reason: 'unsupported-version', data: stored });
+    expect(r.ok === false && r.error).toBeInstanceOf(SaveError);
     expect(await store.load()).toEqual(stored);
   });
   it('a malformed save is reported as damaged, and the stored save is left intact', async () => {

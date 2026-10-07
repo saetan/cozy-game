@@ -29,6 +29,8 @@ const demo = new URLSearchParams(location.search).has('demo'); // demo: always f
 const store = createIdbStore();
 const loaded = demo ? { ok: true as const, game: createGame({ demo }), away: null } : await loadGame(store, Date.now());
 if (!loaded.ok) { // an unreadable save: stop here, so nothing (autosave included) touches it until the player chooses
+  console.error('Saved game could not be loaded:', loaded.error);
+  document.getElementById('hud')!.hidden = true; // none of it is wired yet
   showRecovery(document.body, loaded, store);
   await new Promise<never>(() => {}); // never settles
   throw new Error('unreachable'); // narrows `loaded` below

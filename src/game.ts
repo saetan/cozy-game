@@ -54,7 +54,7 @@ export const saveGame = (g: Game, store: SaveStore, now: number) => store.save(s
 
 export type LoadResult =
   | { ok: true; game: Game; away: AwaySummary | null }
-  | { ok: false; reason: SaveProblem; data: SaveData }; // the stored save, untouched, for the recovery screen
+  | { ok: false; reason: SaveProblem; data: SaveData; error: unknown }; // the stored save, untouched, and what was thrown
 
 /** Startup from a store: loads + catches up an existing save, else a new game. A store that cannot be read counts as no save.
  *  A save that exists but cannot be loaded comes back as `ok: false` with the stored data; nothing is written or cleared. */
@@ -68,6 +68,6 @@ export async function loadGame(store: SaveStore, now: number): Promise<LoadResul
     const speed = SPEEDS.find(s => s === data!.speed) ?? 1;
     return { ok: true, game: createGame({ sim, speed }), away };
   } catch (e) {
-    return { ok: false, reason: e instanceof SaveError ? e.reason : 'damaged', data };
+    return { ok: false, reason: e instanceof SaveError ? e.reason : 'damaged', data, error: e };
   }
 }

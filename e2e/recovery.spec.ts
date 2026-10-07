@@ -40,12 +40,20 @@ test('an unsupported save shows the recovery screen; export keeps it; a new vill
   await expect(page.getByRole('button', { name: 'Start a new village' })).toBeVisible();
   await expect(page.locator('#recovery-card')).toContainText('replaces the saved one');
   expect(await page.evaluate(() => !!(window as any).__game)).toBe(false);
+  for (const id of ['#export-btn', '#new-btn', '#import-btn', '#coins']) await expect(page.locator(id)).toBeHidden(); // the dead HUD is not shown
   await page.screenshot({ path: testInfo.outputPath('recovery.png') });
 
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export this save' }).click()]);
   expect(JSON.parse(await readFile((await download.path())!, 'utf8'))).toEqual(FUTURE_SAVE);
   expect(await stored(page)).toEqual(FUTURE_SAVE); // exporting and viewing the screen leave the save alone
 
+  // dismissing the confirm keeps the save
+  page.once('dialog', d => { expect(d.message()).toContain('Export it first'); void d.dismiss(); });
+  await page.getByRole('button', { name: 'Start a new village' }).click();
+  await expect(page.locator('#recovery-card')).toBeVisible();
+  expect(await stored(page)).toEqual(FUTURE_SAVE);
+
+  page.once('dialog', d => void d.accept());
   await page.getByRole('button', { name: 'Start a new village' }).click();
   await page.waitForFunction(() => !!(window as any).__game);
   await expect(page.locator('#recovery-card')).toHaveCount(0);
@@ -55,7 +63,7 @@ test('an unsupported save shows the recovery screen; export keeps it; a new vill
 });
 
 test('a damaged save gets the damaged message', async ({ page }) => {
-  await seed(page, { version: 4, savedAt: 0 });
+  await seed(page, { version: 1, savedAt: 0 }); // no `sim`: damaged whatever the version
   await page.goto('/');
   await expect(page.locator('#recovery-msg')).toContainText('damaged');
 });

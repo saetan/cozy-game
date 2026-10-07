@@ -11,7 +11,11 @@ export function showRecovery(root: HTMLElement, o: { reason: SaveProblem; data: 
   const exportBtn = el('button', { id: 'recovery-export', class: 'wide' }, 'Export this save');
   exportBtn.addEventListener('click', () => downloadSave(o.data));
   const newBtn = el('button', { id: 'recovery-new', class: 'wide' }, 'Start a new village');
-  newBtn.addEventListener('click', async () => { await store.clear(); location.reload(); });
+  newBtn.addEventListener('click', async () => {
+    if (!confirm('Start a new village? The saved village will be replaced and cannot be recovered. Export it first if you want to keep a copy.')) return;
+    await store.clear();
+    location.reload();
+  });
   root.append(el('div', { id: 'recovery-card', class: 'ui-panel', role: 'alertdialog' },
     el('div', { class: 'card-title' }, "Can't open your village"),
     el('p', { id: 'recovery-msg' }, recoveryMessage(o.reason)),
