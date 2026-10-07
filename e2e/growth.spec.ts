@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { cellToScreen, houseCentre, openGame, occupiedBy } from './helpers';
+import { evidencePath, cellToScreen, houseCentre, openGame, occupiedBy } from './helpers';
 
 const HOUSE_ORIGIN: [number, number] = [-6, -3];
 const game = <T>(page: Page, fn: string) => page.evaluate(`(${fn})(window.__game)`) as Promise<T>;
@@ -179,7 +179,7 @@ test('screenshot: selected house with the level-up panel and next-level ghost ce
   await selectHouse(page, id);
   await page.clock.runFor(200);
   expect(await e2e(page, 'countNamed', 'ghost_free')).toBe(2);
-  const shot = await page.screenshot({ path: testInfo.outputPath('m3-levelup.png') });
+  const shot = await page.screenshot({ path: evidencePath(testInfo, 'm3-levelup.png') });
   await testInfo.attach('m3-levelup', { body: shot, contentType: 'image/png' });
   expect((await occupiedBy(page, id)).length).toBe(4);
 });

@@ -2,20 +2,28 @@ import { execFileSync } from 'node:child_process';
 import { defineConfig } from '@playwright/test';
 
 // Worktrees running e2e at the same time need different ports: E2E_PORT=4174 npm run e2e
-const port = Number(process.env.E2E_PORT ?? 4173);
+const rawPort = process.env.E2E_PORT ?? '4173';
+const port = /^\d+$/.test(rawPort) ? Number(rawPort) : NaN;
+if (!(port >= 1 && port <= 65535)) throw new Error(`e2e: E2E_PORT must be an integer from 1 to 65535, got "${rawPort}"`);
 
-// Fail with our own message (Playwright's suggests reusing the server). Main process only: workers load this
-// config too, by which time the server is up.
-if (!process.env.TEST_WORKER_INDEX) {
+// Fail with our own message (Playwright's suggests reusing the server). Probe once per run: the first load of this
+// config sets E2E_PORT_CHECKED, and later loads skip it (workers inherit it; Playwright's test server, UI mode and
+// the VS Code extension reload the config in-process after the run's own server is up, when the port is busy by design).
+if (!process.env.E2E_PORT_CHECKED) {
   // Connect, don't bind: a wildcard bind succeeds on macOS while `vite preview` holds [::1] on the same port.
   // Connecting to localhost tests what Playwright will actually use.
   const probe = `require('net').connect({host:'localhost',port:${port}}).once('connect',()=>process.exit(1)).once('error',()=>process.exit(0))`;
-  try { execFileSync(process.execPath, ['-e', probe]); }
-  catch {
-    throw new Error(`e2e: port ${port} is already in use, so this run cannot start its own build there. ` +
-      `Pick another port (E2E_PORT=${port + 1} npm run e2e), or stop a preview YOU started earlier, by its PID. ` +
-      `Do not stop whatever owns the port: it may belong to another worktree or session.`);
+  try { execFileSync(process.execPath, ['-e', probe], { timeout: 5000 }); }
+  catch (e) {
+    // exit 1 = something answered; a timeout (killed) = cannot tell. Both fail, with different wording.
+    const unknown = (e as { signal?: string }).signal;
+    throw new Error(unknown
+      ? `e2e: could not tell whether port ${port} is free (the check timed out). Try another port: E2E_PORT=${port + 1} npm run e2e`
+      : `e2e: port ${port} is already in use, so this run cannot start its own build there. ` +
+        `Pick another port (E2E_PORT=${port + 1} npm run e2e), or stop a preview YOU started earlier, by its PID. ` +
+        `Do not stop whatever owns the port: it may belong to another worktree or session.`);
   }
+  process.env.E2E_PORT_CHECKED = '1';
 }
 
 export default defineConfig({

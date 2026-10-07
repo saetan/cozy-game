@@ -28,7 +28,7 @@ Read before changing code:
 
 - Unit-test rules in `tests/`.
 - E2E proof is scene inspection at exact sim moments (`__e2e.runUntil`, `plotView`, `residentView`, `roadKeys`), not pixel comparison. Screenshots and videos are evidence only. Use `pauseClock` when timing matters.
-- Evidence (screenshots, the farming video) goes to `test-results/` and leaves the tree clean. `UPDATE_EVIDENCE=1 npm run e2e` rewrites `docs/screenshots/`; specs get paths from `evidencePath` in `e2e/helpers.ts`, never name that folder.
+- Evidence (screenshots, the farming video) goes to `test-results/` and leaves the tree clean. `UPDATE_EVIDENCE=1 npm run e2e` refreshes the files in `docs/screenshots/` that specs write (a few older ones, e.g. `e2e-demo.png`, `m2-demo.png`, are written by no spec; see #37). A spec that writes evidence takes its path from `evidencePath` in `e2e/helpers.ts` and never names that folder.
 
 ## Workflow
 
