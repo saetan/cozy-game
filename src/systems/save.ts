@@ -2,6 +2,7 @@
 import balance from '../data/balance.json';
 import { emptyStock } from '../sim/crops';
 import { MARKET_FRAME } from '../sim/levels';
+import { logTail } from '../sim/log';
 import { createEventQueue, type QueuedEvent } from '../sim/events';
 import type { Building, Job, LogEntry, Reservation, Resident, SimState, Stats, StreetKind, TileKind } from '../sim/state';
 import type { WorldConfig } from '../sim/world';
@@ -36,7 +37,7 @@ export function serialize(sim: SimState, savedAt = 0, speed?: number): SaveData 
       dispatchPending: sim.dispatchPending,
       world: { config: sim.world.config, unlocked: [...sim.world.unlocked], occupied: [...sim.world.occupied], nextId: sim.world.nextId },
       tiles: [...sim.tiles], streets: [...sim.streets], buildings: [...sim.buildings.values()], residents: [...sim.residents.values()], jobs: [...sim.jobs.values()],
-      log: sim.log, reservations: sim.reservations, queue: { items: sim.queue.heap.items, seq: sim.queue.seq },
+      log: logTail(sim.log), reservations: sim.reservations, queue: { items: sim.queue.heap.items, seq: sim.queue.seq },
     },
   };
   if (speed !== undefined) data.speed = speed;
@@ -96,7 +97,7 @@ export function deserialize(raw: SaveData): SimState {
     world: { config: s.world.config, unlocked: new Set(s.world.unlocked), occupied: new Map(s.world.occupied), nextId: s.world.nextId },
     tiles: new Map(s.tiles), streets: new Map(s.streets),
     buildings: new Map(s.buildings.map(b => [b.id, b])), residents: new Map(s.residents.map(r => [r.id, r])), jobs: new Map(s.jobs.map(j => [j.id, j])),
-    queue, log: s.log, reservations: s.reservations,
+    queue, log: logTail(s.log), reservations: s.reservations,
   };
 }
 

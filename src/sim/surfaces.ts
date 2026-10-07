@@ -10,6 +10,12 @@ export type Side = 'N' | 'E' | 'S' | 'W';
 export const SIDES: Record<Side, readonly [number, number]> = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
 const OPP: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
 
+// Render hint, not game state: bumped by every command that edits sim.streets or sim.tiles, so the road view can skip its work on
+// frames where nothing changed. It is never saved and never in snapshot(); a view starts from scratch, so a loaded village needs no bump.
+let roadRev = 0;
+export const roadsChanged = (): void => { roadRev++; };
+export const roadRevision = (): number => roadRev;
+
 export const streetKey = (i: number, j: number) => `${i},${j}`;
 /** Street tile covering a cell (floor division, so negatives work). */
 export const streetTileOf = (x: number, z: number): Cell => [Math.floor(x / STREET_CELLS), Math.floor(z / STREET_CELLS)];
@@ -34,6 +40,7 @@ const parseCell = (k: string): Cell => { const c = k.indexOf(','); return [Numbe
 /** A TileLookup for findPath: the key is a cell key, the answer a Surface. */
 export function surfaceLookup(sim: Pick<SimState, 'streets' | 'tiles'>) {
   return {
+    surface: (x: number, z: number): string => surfaceAt(sim, x, z),
     has: (k: string) => surfaceAt(sim, ...parseCell(k)) !== 'grass',
     get: (k: string): string => surfaceAt(sim, ...parseCell(k)),
   };

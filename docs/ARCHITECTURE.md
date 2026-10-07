@@ -90,4 +90,3 @@ Tracked in [#30](https://github.com/saetan/cozy-game/issues/30). When you find a
 | `economy.ts` mixes schedule, movement, job steps and effects | [#24](https://github.com/saetan/cozy-game/issues/24) |
 | Vehicles have no position: no parking, bike stand hidden, no turn-around rule | [#26](https://github.com/saetan/cozy-game/issues/26) |
 | The lane mouth on dirt roads is a game-side placeholder | [#27](https://github.com/saetan/cozy-game/issues/27) |
-| Unbounded log; small performance items; crate labels on abort | [#29](https://github.com/saetan/cozy-game/issues/29) |

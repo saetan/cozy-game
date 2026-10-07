@@ -1,6 +1,7 @@
 // Offline catch-up: replays elapsed real time (capped) through the normal event sim at speed 1.
 import balance from '../data/balance.json';
 import { advance } from '../sim/sim';
+import { trimLog } from '../sim/log';
 import { dayOf } from '../sim/clock';
 import type { LogEntry, SimState, Stats } from '../sim/state';
 
@@ -17,11 +18,13 @@ export function catchUp(sim: SimState, savedAt: number, now: number): AwaySummar
   const before = { t: sim.t, coins: sim.coins, stats: { ...sim.stats }, log: sim.log.length };
   advance(sim, simSeconds);
   const d = (k: keyof Stats) => sim.stats[k] - before.stats[k];
+  const log = sim.log.slice(before.log);
+  trimLog(sim);
   return {
     realSeconds, simSeconds, capped: realSeconds > OFFLINE_CAP_SECONDS,
     days: dayOf(sim.t) - dayOf(before.t), coins: sim.coins - before.coins,
     stats: { harvested: d('harvested'), delivered: d('delivered'), sold: d('sold'), earned: d('earned') },
-    log: sim.log.slice(before.log),
+    log,
   };
 }
 

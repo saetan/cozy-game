@@ -164,6 +164,7 @@
   ],
   "startingCoins": 80,
   "offlineCapHours": 8,
+  "logCap": 200,
   "costs": {
     "house": {
       "coins": 50

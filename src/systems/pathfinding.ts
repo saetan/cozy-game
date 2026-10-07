@@ -10,16 +10,18 @@ export type Cell = [number, number];
 export interface PathResult { cells: Cell[]; cost: number; cum: number[] }
 /** Metres per second by surface ('grass' is the default; add a surface by adding a key here, a Surface and a rule in sim/surfaces.ts). */
 export type SpeedTable = Readonly<Record<string, number>>;
-export type TileLookup = { has(key: string): boolean; get?(key: string): string | undefined };
+/** `surface` answers from coordinates (no key to build or parse); a plain Set or Map of cell keys works through `has` / `get`. */
+export type TileLookup = { has(key: string): boolean; get?(key: string): string | undefined; surface?(x: number, z: number): string };
 
 export const WALKING: SpeedTable = balance.walking.speed;
 const REF_SPEED = balance.walking.speed.grass;
-const surfaceOf = (tiles: TileLookup, k: string): string => tiles.get?.(k) ?? (tiles.has(k) ? 'path' : 'grass');
+const surfaceOf = (tiles: TileLookup, x: number, z: number): string =>
+  tiles.surface ? tiles.surface(x, z) : tiles.get?.(cellKey(x, z)) ?? (tiles.has(cellKey(x, z)) ? 'path' : 'grass');
 const DIRS: Cell[] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 export function findPath(w: World, tiles: TileLookup, from: Cell, to: Cell, speeds: SpeedTable = WALKING): PathResult | null {
   if (!isUnlocked(w, to[0], to[1]) || (!isFree(w, to[0], to[1]) && !(from[0] === to[0] && from[1] === to[1]))) return null;
-  const step = (k: string) => REF_SPEED / (speeds[surfaceOf(tiles, k)] ?? speeds.grass);
+  const step = (x: number, z: number) => REF_SPEED / (speeds[surfaceOf(tiles, x, z)] ?? speeds.grass);
   const hUnit = REF_SPEED / Math.max(...Object.values(speeds)); // admissible: fastest surface everywhere
   const h = (x: number, z: number) => (Math.abs(x - to[0]) + Math.abs(z - to[1])) * hUnit;
   interface N { x: number; z: number; g: number; f: number; n: number }
@@ -41,7 +43,7 @@ export function findPath(w: World, tiles: TileLookup, from: Cell, to: Cell, spee
       cells.reverse();
       const cum = [0]; let acc = 0;
       for (let i = 1; i < cells.length; i++) {
-        acc += step(cellKey(cells[i][0], cells[i][1]));
+        acc += step(cells[i][0], cells[i][1]);
         cum.push(acc);
       }
       return { cells, cost: acc, cum: cum.map(v => (acc > 0 ? v / acc : 1)) };
@@ -49,7 +51,7 @@ export function findPath(w: World, tiles: TileLookup, from: Cell, to: Cell, spee
     for (const [dx, dz] of DIRS) {
       const x = c.x + dx, z = c.z + dz;
       if (!isUnlocked(w, x, z) || !isFree(w, x, z)) continue;
-      const k = cellKey(x, z), g = c.g + step(k);
+      const k = cellKey(x, z), g = c.g + step(x, z);
       if (g < (best.get(k) ?? Infinity)) {
         best.set(k, g); prev.set(k, ck);
         open.push({ x, z, g, f: g + h(x, z), n: n++ });
