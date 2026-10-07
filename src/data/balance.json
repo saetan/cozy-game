@@ -3,8 +3,6 @@
   "workStart": 0.25,
   "workEnd": 0.85,
   "startTimeOfDay": 0.25,
-  "walkSpeed": 2,
-  "pathSpeedMultiplier": 1.5,
   "walking": {
     "speed": {
       "grass": 2,

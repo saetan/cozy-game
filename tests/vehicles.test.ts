@@ -34,9 +34,7 @@ describe('vehicle unlocks', () => {
     const garage = LEVELS.findIndex(l => l.garage) + 1;
     expect(garage).toBe(balance.vehicles.car.houseLevel);
   });
-  it('walking speeds match the old walkSpeed and path multiplier', () => {
-    expect(WALKING.grass).toBe(balance.walkSpeed);
-    expect(WALKING.path).toBe(balance.walkSpeed * balance.pathSpeedMultiplier);
+  it('sidewalks walk as fast as a garden path', () => {
     expect(WALKING.street).toBe(WALKING.path); // sidewalks are as good as a garden path
   });
 });

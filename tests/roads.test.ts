@@ -162,9 +162,6 @@ describe('surfaces and speeds', () => {
     expect(cost(sim, [9, 1], balance.vehicles.car.speed)).toBeCloseTo(cost(bare, [9, 1], balance.vehicles.car.speed));
     expect(cost(sim, [9, 1], WALKING)).toBeLessThan(cost(bare, [9, 1], WALKING));
   });
-  it('walking on grass and path is unchanged', () => {
-    expect(WALKING.grass).toBe(balance.walkSpeed); expect(WALKING.path).toBe(balance.walkSpeed * balance.pathSpeedMultiplier);
-  });
 });
 
 describe('save v4', () => {
