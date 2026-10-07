@@ -1,9 +1,9 @@
 // Sim time is in seconds. One in-game day = balance.dayLength seconds.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 
-export const DAY_LENGTH: number = balance.dayLength;
-export const WORK_START: number = balance.workStart;
-export const WORK_END: number = balance.workEnd;
+export const DAY_LENGTH: number = DEFAULTS.dayLength;
+export const WORK_START: number = DEFAULTS.workStart;
+export const WORK_END: number = DEFAULTS.workEnd;
 
 export const dayOf = (t: number): number => Math.floor(t / DAY_LENGTH);
 /** Seconds into the current day, rounded to microseconds to absorb float noise. */

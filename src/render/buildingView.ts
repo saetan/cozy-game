@@ -2,7 +2,7 @@
 // setHousePose (rotationShift) rotates every type identically.
 import * as THREE from 'three';
 import { CELL, P, grp } from '../kit/index.js';
-import balance from '../data/balance.json';
+import { DEFAULTS } from '../sim/config';
 import type { BuildingType } from '../sim/state';
 import { isDecor } from '../sim/decor';
 import { levelSpec } from '../sim/levels';
@@ -11,7 +11,7 @@ import { createHouseObject, popIn } from './houseView';
 const fpSize = (t: BuildingType): readonly [number, number] => {
   const spec = levelSpec(t);
   if (spec) return spec.frame;
-  const fp = balance.footprints[t as 'farmPlot'];
+  const fp = DEFAULTS.footprints[t as 'farmPlot'];
   return [Math.max(...fp.map(c => c[0])) + 1, Math.max(...fp.map(c => c[1])) + 1] as const;
 };
 

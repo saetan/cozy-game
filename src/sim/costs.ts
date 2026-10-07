@@ -1,11 +1,11 @@
 // Costs are resource maps ({ coins: n }) so wood etc. can be added later; only coins exist today.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import type { SimState } from './state';
 
 export type Cost = Readonly<Record<string, number>>;
-export type CostKey = keyof typeof balance.costs;
+export type CostKey = keyof typeof DEFAULTS.costs;
 
-export const costOf = (k: CostKey): Cost => balance.costs[k];
+export const costOf = (k: CostKey): Cost => DEFAULTS.costs[k];
 export const canAfford = (sim: SimState, cost: Cost): boolean =>
   Object.entries(cost).every(([res, n]) => res === 'coins' && sim.coins >= n);
 /** Deducts a cost; callers check canAfford first. */

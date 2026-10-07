@@ -238,3 +238,23 @@ describe('purity', () => {
     for (const [f, src] of Object.entries(sources)) expect(src, f).not.toMatch(bad);
   });
 });
+
+describe('config ownership (#22)', () => {
+  const all = import.meta.glob('../src/**/*.{ts,js}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+  const files = Object.entries(all).filter(([f]) => f !== '../src/sim/config.ts');
+  /** Files that read the numbers through DEFAULTS. Later stages shrink this list as readers take a config argument. */
+  const ALLOWED = [
+    'render/buildingView.ts', 'sim/clock.ts', 'sim/commands.ts', 'sim/costs.ts', 'sim/crops.ts', 'sim/decor.ts', 'sim/economy.ts',
+    'sim/jobs.ts', 'sim/levels.ts', 'sim/residents.ts', 'sim/sim.ts', 'sim/state.ts', 'sim/traffic.ts', 'sim/traits.ts', 'sim/vehicles.ts',
+    'systems/catchup.ts', 'systems/pathfinding.ts', 'systems/save.ts', 'ui/away.ts', 'ui/selection.ts',
+  ].map(f => `../src/${f}`).sort();
+  it('only sim/config.ts imports balance.json', () => {
+    expect(files.length).toBeGreaterThan(20);
+    expect(all['../src/sim/config.ts']).toMatch(/from\s+['"][^'"]*balance\.json['"]/);
+    for (const [f, src] of files) expect(src, f).not.toMatch(/from\s+['"][^'"]*balance\.json['"]|import\s*\(\s*['"][^'"]*balance\.json/);
+  });
+  it('DEFAULTS is imported only by the allow-list', () => {
+    const importers = files.filter(([, src]) => /import\s*\{[^}]*\bDEFAULTS\b[^}]*\}\s*from\s+['"][^'"]*\/config['"]/.test(src)).map(([f]) => f).sort();
+    expect(importers).toEqual(ALLOWED);
+  });
+});

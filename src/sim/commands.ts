@@ -1,5 +1,5 @@
 // Player/system commands applied to the sim.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import { canPlace, place, placementCells, worldCells, type Footprint, type Rotation } from '../systems/placement';
 import { accessCell } from '../systems/pathfinding';
 import { CHUNK, cellKey, chunkKey, inBounds, isFree, isUnlocked, occupy, unlockChunk } from './world';
@@ -29,10 +29,10 @@ const NO_COINS = 'not enough coins';
 
 /** Footprint of a building when first placed (growing buildings: Lv1 cells inside their fixed frame). */
 export const footprintFor = (t: BuildingType): Footprint | undefined =>
-  levelSpec(t)?.cells(1) ?? (balance.footprints as unknown as Record<string, Footprint | undefined>)[t];
+  levelSpec(t)?.cells(1) ?? (DEFAULTS.footprints as unknown as Record<string, Footprint | undefined>)[t];
 
 /** Price of the next land chunk: grows with each one bought. */
-export const chunkPrice = (sim: SimState): Cost => ({ coins: Math.round(balance.chunkCost.base * balance.chunkCost.growth ** sim.chunksBought) });
+export const chunkPrice = (sim: SimState): Cost => ({ coins: Math.round(DEFAULTS.chunkCost.base * DEFAULTS.chunkCost.growth ** sim.chunksBought) });
 const EDGES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 /** Pure: why a chunk cannot be bought now (null = ok). */
 export function chunkBuyReason(sim: SimState, cx: number, cz: number): string | null {
@@ -60,7 +60,7 @@ export function apply(sim: SimState, cmd: Command): CommandResult {
       const p = place(sim.world, fp, cmd.rotation, ox, oz, frame)!;
       for (const [x, z] of worldCells(fp, cmd.rotation, ox, oz, frame)) sim.tiles.delete(cellKey(x, z));
       const b = { id: p.id, type: cmd.building, placement: p, level: 1 } as Building;
-      if (b.type === 'farmPlot') { b.crop = balance.defaultCrop; b.plotState = 'empty'; b.crates = 0; }
+      if (b.type === 'farmPlot') { b.crop = DEFAULTS.defaultCrop; b.plotState = 'empty'; b.crates = 0; }
       if (b.type === 'market') b.stock = emptyStock();
       sim.buildings.set(b.id, b);
       if (b.type === 'farmPlot') syncPlot(sim, b);

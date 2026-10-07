@@ -46,7 +46,7 @@ player input ──► commands ──► SIM (rules, state) ──► render / 
 3. **Numbers live in `balance.json`,** never in code.
 4. **A rule lives in one module, behind a small interface.** Other modules ask it questions; they do not copy its logic. Adding a rule should mean changing that module and its tests.
 5. **Rule variants are config options, not code edits.** When a rule has two or more sensible variants, give it a named option in `balance.json` and implement each variant. Do not add an option nobody can name a second value for.
-6. **Config is read through an accessor,** one per module for now (for example `trafficConfig()`), so tests can override it and it can become live-editable ([#22](https://github.com/saetan/cozy-game/issues/22)).
+6. **Config is read through an accessor,** one per module for now (for example `trafficConfig()`), so tests can override it and it can become live-editable ([#22](https://github.com/saetan/cozy-game/issues/22)). Since stage 1 of #22, `src/sim/config.ts` is the only file that imports `balance.json`; everything else reads it through that module's `DEFAULTS`, and a test lists the files allowed to (the list shrinks as later stages pass config explicitly).
 7. **Changing `SimState` needs a save migration.** Bump `SAVE_VERSION`, add a `vNToVN+1` step chained after the others, and test it from every older version.
 8. **The kit is vendored.** Game-side adaptations go in `src/kit/index.js` or `src/render/`. Missing or awkward kit pieces become a request for the next handoff.
 

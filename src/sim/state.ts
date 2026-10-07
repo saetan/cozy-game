@@ -1,7 +1,7 @@
 // Sim state: plain data as far as practical (World uses Map/Set; save in M4 will serialise it).
 import { createWorld, type World, type WorldConfig } from './world';
 import type { Placement } from '../systems/placement';
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import { createEventQueue, type EventQueue } from './events';
 
 export type BuildingType = 'house' | 'farmPlot' | 'market' | 'shrub' | 'fence' | 'scarecrow';
@@ -14,8 +14,8 @@ export type TileKind = 'path' | 'lane' | 'dirtLane';
 export type StreetKind = 'road' | 'dirt';
 /** What a cell is made of: the key into every speed table in balance.json. */
 export type Surface = 'grass' | 'path' | 'street' | 'dirtRoad' | 'lane' | 'dirtLane';
-export type TraitId = keyof typeof balance.traits;
-export type VehicleKind = keyof typeof balance.vehicles;
+export type TraitId = keyof typeof DEFAULTS.traits;
+export type VehicleKind = keyof typeof DEFAULTS.vehicles;
 
 export interface Building {
   id: number; type: BuildingType; placement: Placement;
@@ -65,8 +65,8 @@ export interface SimState {
 export function newState(seed: number, t0: number, worldConfig?: WorldConfig): SimState {
   return {
     t: t0, rng: seed >>> 0, world: createWorld(worldConfig), tiles: new Map(), streets: new Map(),
-    buildings: new Map(), residents: new Map(), reservations: [], coins: balance.startingCoins,
-    unlockedCrops: [balance.defaultCrop], chunksBought: 0,
+    buildings: new Map(), residents: new Map(), reservations: [], coins: DEFAULTS.startingCoins,
+    unlockedCrops: [DEFAULTS.defaultCrop], chunksBought: 0,
     jobs: new Map(), nextJobId: 1, nextResidentId: 1, dispatchPending: false,
     queue: createEventQueue(), stats: { harvested: 0, delivered: 0, sold: 0, earned: 0 }, log: [],
   };

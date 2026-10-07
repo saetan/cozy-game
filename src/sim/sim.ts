@@ -1,5 +1,5 @@
 // Public sim API: createSim, apply, advance, snapshot.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import { peekEvent, popEvent, sortedEvents } from './events';
 import { handleEvent } from './economy';
 import { newState, type SimState } from './state';
@@ -12,7 +12,7 @@ export type { Command, CommandResult } from './commands';
 export type { SimState } from './state';
 
 export function createSim(opts: { seed: number; worldConfig?: WorldConfig }): SimState {
-  return newState(opts.seed, balance.startTimeOfDay * DAY_LENGTH, opts.worldConfig);
+  return newState(opts.seed, DEFAULTS.startTimeOfDay * DAY_LENGTH, opts.worldConfig);
 }
 
 /** Jump from event to event up to t + dt. Result depends only on the target time, not on chunking. */

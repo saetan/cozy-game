@@ -1,13 +1,13 @@
 // Vehicles: unlocked by house level, one of each per house (shared by its residents), claimed per walk leg.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import { costOfSeconds, findPath, WALKING, type Cell, type PathResult, type SpeedTable } from '../systems/pathfinding';
 import type { Resident, SimState, VehicleKind } from './state';
 import { surfaceLookup } from './surfaces';
 import { pathUntilStop, planEntry, type Entry } from './traffic';
 
 
-export const VEHICLES = Object.keys(balance.vehicles) as VehicleKind[]; // tie-break order
-export const vehicleInfo = (k: VehicleKind) => balance.vehicles[k] as { houseLevel: number; carry?: number; speed: SpeedTable };
+export const VEHICLES = Object.keys(DEFAULTS.vehicles) as VehicleKind[]; // tie-break order
+export const vehicleInfo = (k: VehicleKind) => DEFAULTS.vehicles[k] as { houseLevel: number; carry?: number; speed: SpeedTable };
 export const unlockLevel = (k: VehicleKind): number => vehicleInfo(k).houseLevel;
 export const isUnlocked = (houseLevel: number, k: VehicleKind): boolean => houseLevel >= unlockLevel(k);
 

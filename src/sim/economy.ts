@@ -1,5 +1,5 @@
 // Resident behaviour and the farm/haul/sell economy. Event-driven: one event per task end.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import { accessCell, travelTime } from '../systems/pathfinding';
 import { isWorkHours, nextWorkEnd, nextWorkStart } from './clock';
 import { pushEvent, type SimEvent } from './events';
@@ -11,7 +11,7 @@ import { reserve } from './traffic';
 import { freeVehicles, planLeg, vehicleInfo } from './vehicles';
 import type { Building, Cell, Job, Resident, SimState, Task, VehicleKind } from './state';
 
-type Op = { at: 'plot' | 'market'; action: Task['action']; time: keyof typeof balance.times; effect: string };
+type Op = { at: 'plot' | 'market'; action: Task['action']; time: keyof typeof DEFAULTS.times; effect: string };
 const PLANS: Record<Job['kind'], Op[]> = {
   plant: [{ at: 'plot', action: 'work', time: 'plant', effect: 'plant' }],
   water: [{ at: 'plot', action: 'water', time: 'water', effect: 'water' }],
@@ -74,8 +74,8 @@ function runJob(sim: SimState, r: Resident): void {
     // selling is open-ended, so it stops at work end instead of running all night
     if (op.effect === 'sell' && (stockTotal(b!) <= 0 || !isWorkHours(sim.t))) { r.stage = plan.length; continue; }
     // specialist bonus and trait speed-ups stack multiplicatively
-    const speed = (r.role === ROLE_OF[job.kind] ? balance.specialistMultiplier : 1) * traitSpeed(r, op.time);
-    startTask(sim, r, { kind: 'job', action: op.action, start: sim.t, end: sim.t + balance.times[op.time] / speed });
+    const speed = (r.role === ROLE_OF[job.kind] ? DEFAULTS.specialistMultiplier : 1) * traitSpeed(r, op.time);
+    startTask(sim, r, { kind: 'job', action: op.action, start: sim.t, end: sim.t + DEFAULTS.times[op.time] / speed });
     return;
   }
 }
@@ -101,15 +101,15 @@ function applyEffect(sim: SimState, r: Resident, job: Job, effect: string): void
   const plot = b?.type === 'farmPlot' ? b : undefined;
   switch (effect) {
     case 'plant': {
-      const crop = cropInfo(plot!.crop ?? balance.defaultCrop);
-      plot!.plotState = 'growing'; plot!.growCrop = plot!.crop ?? balance.defaultCrop;
-      pushEvent(sim.queue, sim.t + crop.growTime * balance.waterFraction / growthMultiplier(sim, plot!), { kind: 'plot', plotId: plot!.id, stage: 'thirsty' });
+      const crop = cropInfo(plot!.crop ?? DEFAULTS.defaultCrop);
+      plot!.plotState = 'growing'; plot!.growCrop = plot!.crop ?? DEFAULTS.defaultCrop;
+      pushEvent(sim.queue, sim.t + crop.growTime * DEFAULTS.waterFraction / growthMultiplier(sim, plot!), { kind: 'plot', plotId: plot!.id, stage: 'thirsty' });
       break;
     }
     case 'water': {
-      const crop = cropInfo(plot!.growCrop ?? plot!.crop ?? balance.defaultCrop);
+      const crop = cropInfo(plot!.growCrop ?? plot!.crop ?? DEFAULTS.defaultCrop);
       plot!.plotState = 'watered';
-      pushEvent(sim.queue, sim.t + crop.growTime * (1 - balance.waterFraction) / growthMultiplier(sim, plot!), { kind: 'plot', plotId: plot!.id, stage: 'ripe' });
+      pushEvent(sim.queue, sim.t + crop.growTime * (1 - DEFAULTS.waterFraction) / growthMultiplier(sim, plot!), { kind: 'plot', plotId: plot!.id, stage: 'ripe' });
       break;
     }
     case 'harvest':
@@ -120,7 +120,7 @@ function applyEffect(sim: SimState, r: Resident, job: Job, effect: string): void
       plot!.crates = (plot!.crates ?? 0) - n; job.pickedUp = true; r.carrying = n; r.carryingCrop = plot!.crateCrop ?? plot!.crop; break;
     }
     case 'drop': {
-      const m = market(sim)!, c = r.carryingCrop ?? balance.defaultCrop;
+      const m = market(sim)!, c = r.carryingCrop ?? DEFAULTS.defaultCrop;
       m.stock![c] = (m.stock![c] ?? 0) + r.carrying; sim.stats.delivered += r.carrying; r.carrying = 0; delete r.carryingCrop; break;
     }
     case 'sell': {

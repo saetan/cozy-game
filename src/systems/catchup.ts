@@ -1,10 +1,10 @@
 // Offline catch-up: replays elapsed real time (capped) through the normal event sim at speed 1.
-import balance from '../data/balance.json';
+import { DEFAULTS } from '../sim/config';
 import { advance } from '../sim/sim';
 import { dayOf } from '../sim/clock';
 import type { LogEntry, SimState, Stats } from '../sim/state';
 
-export const OFFLINE_CAP_SECONDS = balance.offlineCapHours * 3600;
+export const OFFLINE_CAP_SECONDS = DEFAULTS.offlineCapHours * 3600;
 
 export interface AwaySummary {
   realSeconds: number; simSeconds: number; capped: boolean; days: number;
