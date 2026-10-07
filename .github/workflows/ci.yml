@@ -1,6 +1,6 @@
 name: CI
-# PRs run typecheck + unit tests only (fast). The e2e suite runs on pushes to main, or on demand:
-# Actions tab -> CI -> Run workflow (pick a branch).
+# PRs always run typecheck + unit tests. The e2e suite runs on pushes to main, on demand
+# (Actions tab -> CI -> Run workflow), and on PRs that change e2e, UI, render, main.ts or this workflow.
 on:
   pull_request:
   push:
@@ -16,9 +16,29 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+  # Decides whether e2e runs. Not a workflow-level paths filter: that would skip `test` too.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      e2e: ${{ steps.diff.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then echo "e2e=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if git diff --name-only "$BASE" HEAD | grep -E '^(e2e/|playwright\.config\.ts$|src/ui/|src/render/|src/main\.ts$|\.github/workflows/)'; then
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "e2e=false" >> "$GITHUB_OUTPUT"
+          fi
   # Software WebGL makes each e2e test slow, so the suite is split across parallel runners (one worker each).
   e2e:
-    if: github.event_name != 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -39,8 +59,8 @@ jobs:
           retention-days: 1
   # One HTML report for the whole suite, merged from the shards.
   e2e-report:
-    if: always() && github.event_name != 'pull_request'
-    needs: e2e
+    if: always() && needs.changes.outputs.e2e == 'true'
+    needs: [changes, e2e]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
