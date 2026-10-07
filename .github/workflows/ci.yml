@@ -1,11 +1,16 @@
 name: CI
 # PRs always run typecheck + unit tests. The e2e suite runs on pushes to main, on demand
-# (Actions tab -> CI -> Run workflow), and on PRs that change e2e, UI, render, main.ts or this workflow.
+# (Actions tab -> CI -> Run workflow), and on PRs that change what the e2e suite exercises directly
+# (see the path list in the `changes` job).
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
+# A new push to a PR cancels that PR's older run; runs on main and on demand are never cancelled.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,14 +28,17 @@ jobs:
       e2e: ${{ steps.diff.outputs.e2e }}
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with: { fetch-depth: 2 }
       - id: diff
         env:
           EVENT: ${{ github.event_name }}
-          BASE: ${{ github.event.pull_request.base.sha }}
+        # On a pull request the checkout is the merge commit, so its first parent is the base: HEAD^1..HEAD is exactly
+        # the PR's change. --no-renames lists a moved file under its old path too; quotepath=off keeps non-ASCII
+        # names unquoted. The list is captured first so a failing `git diff` fails the job instead of reading as "no match".
         run: |
           if [ "$EVENT" != "pull_request" ]; then echo "e2e=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "$BASE" HEAD | grep -E '^(e2e/|playwright\.config\.ts$|src/ui/|src/render/|src/main\.ts$|\.github/workflows/)'; then
+          files="$(git -c core.quotepath=off diff --no-renames --name-only HEAD^1 HEAD)"
+          if printf '%s\n' "$files" | grep -E '^(e2e/|playwright\.config\.ts$|src/ui/|src/render/|src/kit/|design/kit/|src/main\.ts$|src/game\.ts$|src/style\.css$|index\.html$|vite\.config\.|package(-lock)?\.json$|\.github/workflows/)'; then
             echo "e2e=true" >> "$GITHUB_OUTPUT"
           else
             echo "e2e=false" >> "$GITHUB_OUTPUT"

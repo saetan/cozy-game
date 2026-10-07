@@ -22,11 +22,11 @@ Closes #
 ## Validation and proof
 
 <!-- Tick an item only if you verified it, and add evidence under it: commands run, test counts, screenshots, reviewer name.
-     Say which commit each piece of evidence was measured on. E2E evidence is the CI run link, not a local count.
+     Say which commit each piece of evidence was measured on. E2E evidence is the link to a CI run whose e2e jobs ran (not one where they were skipped), not a local count.
      If an item doesn't apply, leave it unticked and write "N/A: <reason>" under it. Never delete an item. -->
 
 - [ ] **Focused tests pass**: tests for the new or changed behaviour
-- [ ] **Existing control behaviour is covered**: existing tests still pass, and behaviour that must not change is protected by a test. Name that test and the one-line code change that makes it fail; you must have run it.
+- [ ] **Existing control behaviour is covered**: existing tests still pass, and behaviour that must not change is protected by a test. For each "never", "always" or "unchanged" claim under What Changed, name the test and the one-line code change that makes it fail; you must have run it.
 - [ ] **UI proof is attached when relevant**: screenshot or recording for any visible change
 - [ ] **A fresh reviewer or agent reviewed the diff**: someone other than the author (name the reviewer)
 
