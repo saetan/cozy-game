@@ -59,6 +59,7 @@
   },
   "specialistMultiplier": 1.5,
   "maxCrates": 3,
+  "abortRetrySeconds": 60,
   "waterFraction": 0.5,
   "times": {
     "plant": 4,

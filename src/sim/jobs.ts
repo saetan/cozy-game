@@ -30,13 +30,21 @@ export const completeJob = (sim: SimState, r: Resident): void => {
 const hasJob = (sim: SimState, kind: JobKind, targetId: number) =>
   [...sim.jobs.values()].some(j => j.kind === kind && j.targetId === targetId);
 
+/** The one rule for putting crates on a plot (harvest, aborted haul): they must share one crop and stay within
+ *  maxCrates. A plot holding crates with no crateCrop (old saves) counts as holding the plot's own crop. */
+export function canStore(plot: Building, crop: string, n = 1): boolean {
+  const held = plot.crates ?? 0;
+  return held + n <= balance.maxCrates && (held === 0 || (plot.crateCrop ?? plot.crop ?? balance.defaultCrop) === crop);
+}
+export const harvestFits = (plot: Building): boolean => canStore(plot, plot.growCrop ?? plot.crop ?? balance.defaultCrop);
+
 /** Idempotently post whatever jobs a farm plot currently needs. */
 export function syncPlot(sim: SimState, plot: Building): void {
   const crates = plot.crates ?? 0, room = crates < balance.maxCrates;
   const want: JobKind | null =
     plot.plotState === 'empty' && room ? 'plant' :
     plot.plotState === 'thirsty' ? 'water' :
-    plot.plotState === 'ripe' && room && (crates === 0 || (plot.crateCrop ?? plot.crop) === (plot.growCrop ?? plot.crop)) ? 'harvest' : null;
+    plot.plotState === 'ripe' && harvestFits(plot) ? 'harvest' : null;
   if (want && !hasJob(sim, want, plot.id)) postJob(sim, want, plot.id);
   let pending = [...sim.jobs.values()].filter(j => j.kind === 'haul' && j.targetId === plot.id && !j.pickedUp).length;
   while (pending < crates) { postJob(sim, 'haul', plot.id); pending++; }
