@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openGame, pauseClock } from './helpers';
+import { evidencePath, openGame, pauseClock } from './helpers';
 
 // Proof is sim and scene inspection at exact moments (runUntil steps the sim event by event, then redraws once).
 // The screenshot is evidence only.
@@ -10,7 +10,7 @@ const game = <T>(page: Page, fn: string) => page.evaluate(`(${fn})(window.__game
 
 const WAITING = `s => [...s.residents.values()].some(r => r.task && r.task.action === 'wait')`;
 
-test('two cars share one lane: the second waits at the entrance on its car, then rides on', async ({ page }) => {
+test('two cars share one lane: the second waits at the entrance on its car, then rides on', async ({ page }, testInfo) => {
   const errors = await openGame(page);
   await e2e(page, 'giveCoins', 5000);
   // Both lane rules say "always wait" (the default would let the second resident take the unlimited bicycle instead)
@@ -71,7 +71,7 @@ test('two cars share one lane: the second waits at the entrance on its car, then
   await page.locator('#residents-btn').click(); // close the list again
   await e2e(page, 'closeUp', wx + 1, wz - 5, 46);
   await page.clock.runFor(100);
-  await page.screenshot({ path: 'docs/screenshots/traffic-wait.png' });
+  await page.screenshot({ path: evidencePath(testInfo, 'traffic-wait.png') });
 
   // then it rides on from the entrance, still on its car, and the vehicle is released at the end
   await until(page, `s => { const r = s.residents.get(${state.waiter}); return !r.task || r.task.action !== 'wait'; }`);

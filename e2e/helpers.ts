@@ -1,4 +1,5 @@
-import type { Page } from '@playwright/test';
+import type { Page, TestInfo } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
 
 export interface Pt { x: number; y: number }
 
@@ -44,4 +45,13 @@ export async function pauseClock(page: Page) {
     catch (e) { if (!String(e).includes('past')) throw e; }
   }
   throw new Error('could not pause page.clock');
+}
+
+/** Where a spec writes an evidence file (screenshot, video). Default: the per-test output dir under
+ *  `test-results/` (git-ignored). With `UPDATE_EVIDENCE=1`: the tracked `docs/screenshots/`.
+ *  Specs that write evidence go through this; none names the tracked folder itself. */
+export function evidencePath(testInfo: TestInfo, name: string) {
+  if (!process.env.UPDATE_EVIDENCE) return testInfo.outputPath(name);
+  mkdirSync('docs/screenshots', { recursive: true });
+  return `docs/screenshots/${name}`;
 }

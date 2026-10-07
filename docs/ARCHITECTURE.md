@@ -74,7 +74,7 @@ player input ──► commands ──► SIM (rules, state) ──► render / 
 - **E2E tests** (`e2e/`, Playwright): the real game in a browser. Proof is **scene inspection at exact sim moments**, not pixels:
   - `__e2e.runUntil(pred)` steps the sim event by event until a condition holds;
   - inspection hooks (`plotView`, `residentView`, `roadKeys`, `housePieceKeys`, `countNamed`) report what is actually drawn;
-  - screenshots and videos are evidence for the PR, not pass/fail gates;
+  - screenshots and videos are evidence for the PR, not pass/fail gates; they go to `test-results/` unless `UPDATE_EVIDENCE=1` (`evidencePath` in `e2e/helpers.ts`);
   - specs that check timing pause the fake clock with `pauseClock` (`e2e/helpers.ts`), because it keeps flowing in real time otherwise.
 - **CI:** PRs run typecheck and unit tests. The full e2e suite runs on pushes to `main`, split across 4 runners, and on demand (Actions → CI → Run workflow). Run `npm run e2e` locally before opening a PR; for PRs that change rendering or e2e tests, also trigger the on-demand run.
 - Test hooks (`window.__game`, `window.__e2e`) exist only in dev and e2e builds. `grep` for them in `dist/` after a normal build must find nothing.
@@ -90,5 +90,4 @@ Tracked in [#30](https://github.com/saetan/cozy-game/issues/30). When you find a
 | `economy.ts` mixes schedule, movement, job steps and effects | [#24](https://github.com/saetan/cozy-game/issues/24) |
 | Vehicles have no position: no parking, bike stand hidden, no turn-around rule | [#26](https://github.com/saetan/cozy-game/issues/26) |
 | The lane mouth on dirt roads is a game-side placeholder | [#27](https://github.com/saetan/cozy-game/issues/27) |
-| E2E runs rewrite tracked evidence files; stale preview server; flaky parallel runs | [#28](https://github.com/saetan/cozy-game/issues/28) |
 | Unbounded log; small performance items; crate labels on abort | [#29](https://github.com/saetan/cozy-game/issues/29) |

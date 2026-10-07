@@ -11,7 +11,7 @@ Read before changing code:
 
 - `npm run dev`: dev server (has a dev-only "+1000 coins" button).
 - `npm run typecheck`, `npm test`, `npm run build`.
-- `npm run e2e`, or `npx playwright test --workers=1` for a stable serial run. Kill any stale `vite preview` on port 4173 first.
+- `npm run e2e` (rebuilds, 2 local workers). The port is `E2E_PORT` (default 4173); a run never reuses a server, so a busy port fails with instructions. Running from two worktrees at once: `E2E_PORT=4174 npm run e2e`.
 
 ## Rules that must hold
 
@@ -28,10 +28,11 @@ Read before changing code:
 
 - Unit-test rules in `tests/`.
 - E2E proof is scene inspection at exact sim moments (`__e2e.runUntil`, `plotView`, `residentView`, `roadKeys`), not pixel comparison. Screenshots and videos are evidence only. Use `pauseClock` when timing matters.
-- E2E runs rewrite tracked files in `docs/screenshots/`; revert the ones you did not mean to change.
+- Evidence (screenshots, the farming video) goes to `test-results/` and leaves the tree clean. `UPDATE_EVIDENCE=1 npm run e2e` refreshes the files in `docs/screenshots/` that specs write (a few older ones, e.g. `e2e-demo.png`, `m2-demo.png`, are written by no spec; see #37). A spec that writes evidence takes its path from `evidencePath` in `e2e/helpers.ts` and never names that folder.
 
 ## Workflow
 
+- Stop only processes you started yourself in this session, by the PID you recorded. Never kill by port or by name (`lsof -ti :N | xargs kill`, `pkill`): other worktrees and sessions share this machine.
 - Work on a feature branch. Never push to `main`; the user merges, or asks for a merge.
 - PRs use `.github/pull_request_template.md`. Tick only what you verified, with evidence.
 - CI on PRs runs typecheck and unit tests only. Run e2e locally; for rendering or e2e changes, also run the on-demand e2e workflow (`gh workflow run CI --ref <branch>`).

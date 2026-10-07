@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { copyFileSync, mkdirSync, readdirSync } from 'node:fs';
-import { openGame, pauseClock } from './helpers';
+import { copyFileSync, readdirSync } from 'node:fs';
+import { evidencePath, openGame, pauseClock } from './helpers';
 
 // Proof is scene-graph assertions at exact sim moments (runUntil steps the sim event by event, then redraws once).
 // Screenshots and the video are evidence only.
@@ -93,14 +93,13 @@ test('at 20x a full plant, water, harvest cycle leaves no stray particles or err
   expect(errors).toEqual([]);
 });
 
-test('evidence: close-up screenshots and a short video of sow, hoe and water', async ({ browser }) => {
+test('evidence: close-up screenshots and a short video of sow, hoe and water', async ({ browser }, testInfo) => {
   test.setTimeout(240_000);
-  const dir = 'test-results/farming-video';
+  const dir = testInfo.outputPath('video');
   const ctx = await browser.newContext({ viewport: { width: 800, height: 500 }, recordVideo: { dir, size: { width: 800, height: 500 } } });
   const page = await ctx.newPage();
   const { errors, res } = await village(page);
-  mkdirSync('docs/screenshots', { recursive: true });
-  const shot = (name: string) => page.screenshot({ path: `docs/screenshots/farming-${name}.png` });
+  const shot = (name: string) => page.screenshot({ path: evidencePath(testInfo, `farming-${name}.png`) });
   const frames = async (ms: number) => { for (let i = 0; i < ms / 100; i++) { await page.clock.runFor(100); await page.waitForTimeout(40); } };
   await page.evaluate(() => { document.getElementById('hud')!.style.display = 'none'; }); // clean evidence frames
   await page.evaluate(([x, z]) => (window as any).__game.placeBuilding('farmPlot', 0, [x + 3, z]), PLOT_AT);
@@ -130,6 +129,6 @@ test('evidence: close-up screenshots and a short video of sow, hoe and water', a
   await ctx.close();
   const video = readdirSync(dir).find(f => f.endsWith('.webm'));
   expect(video).toBeTruthy();
-  copyFileSync(`${dir}/${video}`, 'docs/screenshots/farming.webm');
+  copyFileSync(`${dir}/${video}`, evidencePath(testInfo, 'farming.webm'));
   expect(errors).toEqual([]);
 });
