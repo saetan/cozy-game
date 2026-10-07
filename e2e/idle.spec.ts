@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openGame } from './helpers';
+import { evidencePath, openGame } from './helpers';
 
 const game = <T>(page: Page, fn: string) => page.evaluate(`(${fn})(window.__game)`) as Promise<T>;
 const e2e = (page: Page, fn: string, ...args: unknown[]) => page.evaluate(([f, a]) => (window as any).__e2e[f as string](...(a as unknown[])), [fn, args] as const);
@@ -44,8 +44,8 @@ test('MVP: build a village, leave for 3 h, return to a summary and a restored vi
   expect(await roles(page)).toEqual(['farmer', 'hauler', 'seller']);
   expect(await game(page, 'g => [...g.sim.buildings.values()].filter(b => b.type === "house").length')).toBe(3);
   await expect(page.locator('#arrival-card')).toBeHidden(); // old arrivals are not re-announced
-  await page.screenshot({ path: 'docs/screenshots/m4-away.png' });
-  await testInfo.attach('m4-away', { path: 'docs/screenshots/m4-away.png', contentType: 'image/png' });
+  const shot = await page.screenshot({ path: evidencePath(testInfo, 'm4-away.png') });
+  await testInfo.attach('m4-away', { body: shot, contentType: 'image/png' });
   await page.locator('#away-ok').click();
   await expect(card).toBeHidden();
   expect(errors).toEqual([]);

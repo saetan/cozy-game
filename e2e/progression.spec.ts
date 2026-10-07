@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { cellToScreen, openGame } from './helpers';
+import { cellToScreen, evidencePath, openGame } from './helpers';
 
 const game = <T>(page: Page, fn: string) => page.evaluate(`(${fn})(window.__game)`) as Promise<T>;
 const giveCoins = (page: Page, n: number) => page.evaluate(k => (window as any).__e2e.giveCoins(k), n);
@@ -7,7 +7,7 @@ const place = (page: Page, type: string, o: [number, number]) =>
   page.evaluate(([t, p]) => (window as any).__game.placeBuilding(t, 0, p).id as number, [type, o] as const);
 const click = async (page: Page, x: number, z: number) => { const p = await cellToScreen(page, x, z); await page.mouse.click(p.x, p.y); };
 
-test('unlock a crop from a plot panel and set it on the plot', async ({ page }) => {
+test('unlock a crop from a plot panel and set it on the plot', async ({ page }, testInfo) => {
   const errors = await openGame(page);
   const plot = await place(page, 'farmPlot', [0, 6]);
   await page.clock.runFor(200); // a frame so the plot is drawn
@@ -25,7 +25,7 @@ test('unlock a crop from a plot panel and set it on the plot', async ({ page }) 
   await expect(cabbage).toHaveAttribute('aria-pressed', 'true');
   expect(await game<string>(page, `s => s.sim.buildings.get(${plot}).crop`)).toBe('cabbage');
   await page.clock.runFor(100);
-  await page.screenshot({ path: 'docs/screenshots/m5a-progression.png' });
+  await page.screenshot({ path: evidencePath(testInfo, 'm5a-progression.png') });
   expect(errors).toEqual([]);
 });
 

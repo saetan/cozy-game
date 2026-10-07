@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { cellToScreen, openGame, pauseClock } from './helpers';
+import { cellToScreen, evidencePath, openGame, pauseClock } from './helpers';
 
 // Road proof is scene inspection: `__e2e.roadKeys()` returns the kit item keys the view has put in the scene
 // (road:<i,j>:<type>:<N E S W signature + dropped-kerb cuts>, lane:<x,z>:<type>:<sig>, laneMouth:..., path:...).
@@ -143,7 +143,7 @@ test('editing the network only rebuilds the changed pieces (diff by key)', async
   expect(after.filter(k => before.includes(k)).sort()).toEqual(['road:0,-4:road:-r--', 'road:1,-4:road:-r-r']);
 });
 
-test('screenshot: option C village with a street T-junction, a dirt lane to the farm joining at a mouth, and a garden path', async ({ page }) => {
+test('screenshot: option C village with a street T-junction, a dirt lane to the farm joining at a mouth, and a garden path', async ({ page }, testInfo) => {
   const errors = await openGame(page);
   await pauseClock(page);
   await e2e(page, 'giveCoins', 1000);
@@ -168,6 +168,6 @@ test('screenshot: option C village with a street T-junction, a dirt lane to the 
   expect(k.some(x => x.startsWith('path:'))).toBe(true);
   await page.locator('#arrival-ok').click({ timeout: 2000 }).catch(() => {});
   await page.clock.runFor(300);
-  await page.screenshot({ path: 'docs/screenshots/roads-option-c.png' });
+  await page.screenshot({ path: evidencePath(testInfo, 'roads-option-c.png') });
   expect(errors).toEqual([]);
 });
