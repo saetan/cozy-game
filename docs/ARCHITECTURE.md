@@ -88,7 +88,6 @@ Tracked in [#30](https://github.com/saetan/cozy-game/issues/30). When you find a
 | Config is imported at build time by many files, so nothing can be changed live | [#22](https://github.com/saetan/cozy-game/issues/22) |
 | Rules written in code: role fallback, job priority, wagon preference | [#23](https://github.com/saetan/cozy-game/issues/23) |
 | `economy.ts` mixes schedule, movement, job steps and effects | [#24](https://github.com/saetan/cozy-game/issues/24) |
-| Walking speed is defined twice | [#25](https://github.com/saetan/cozy-game/issues/25) |
 | Vehicles have no position: no parking, bike stand hidden, no turn-around rule | [#26](https://github.com/saetan/cozy-game/issues/26) |
 | The lane mouth on dirt roads is a game-side placeholder | [#27](https://github.com/saetan/cozy-game/issues/27) |
 | E2E runs rewrite tracked evidence files; stale preview server; flaky parallel runs | [#28](https://github.com/saetan/cozy-game/issues/28) |
