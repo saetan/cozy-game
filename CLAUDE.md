@@ -11,7 +11,7 @@ Read before changing code:
 
 - `npm run dev`: dev server (has a dev-only "+1000 coins" button).
 - `npm run typecheck`, `npm test`, `npm run build`.
-- `npm run e2e` (rebuilds, 2 local workers). It never reuses a server: if port 4173 is taken it fails with "already used"; kill the stale `vite preview`, or run side by side with `E2E_PORT=4174 npm run e2e`.
+- `npm run e2e` (rebuilds, 2 local workers). The port is `E2E_PORT` (default 4173); a run never reuses a server, so a busy port fails with instructions. Running from two worktrees at once: `E2E_PORT=4174 npm run e2e`.
 
 ## Rules that must hold
 
@@ -32,6 +32,7 @@ Read before changing code:
 
 ## Workflow
 
+- Stop only processes you started yourself in this session, by the PID you recorded. Never kill by port or by name (`lsof -ti :N | xargs kill`, `pkill`): other worktrees and sessions share this machine.
 - Work on a feature branch. Never push to `main`; the user merges, or asks for a merge.
 - PRs use `.github/pull_request_template.md`. Tick only what you verified, with evidence.
 - CI on PRs runs typecheck and unit tests only. Run e2e locally; for rendering or e2e changes, also run the on-demand e2e workflow (`gh workflow run CI --ref <branch>`).
