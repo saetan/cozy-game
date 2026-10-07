@@ -3,7 +3,7 @@ import { advance, apply, createSim, snapshot } from '../src/sim/sim';
 import { createGame, loadGame, saveGame } from '../src/game';
 import { market } from '../src/sim/jobs';
 import { catchUp, OFFLINE_CAP_SECONDS } from '../src/systems/catchup';
-import { createMemoryStore, deserialize, serialize } from '../src/systems/save';
+import { createMemoryStore, type SaveData, deserialize, migrate, SAVE_VERSION, SaveError, serialize } from '../src/systems/save';
 import { shouldShowAway, summaryLines } from '../src/ui/away';
 import type { Role } from '../src/sim/state';
 
@@ -99,21 +99,61 @@ describe('summaryLines', () => {
 
 describe('loadGame', () => {
   it('no save -> new game with the market', async () => {
-    const { game, away } = await loadGame(createMemoryStore(), 0);
+    const r = await loadGame(createMemoryStore(), 0);
+    if (!r.ok) throw new Error('expected a game');
+    const { game, away } = r;
     expect(away).toBeNull(); expect(market(game.sim)).toBeTruthy();
   });
   it('existing save -> restored, caught up, speed restored, market not doubled', async () => {
     const g = createGame(); g.sim.coins = 500; g.placeBuilding('house', 0, [-8, 0]); g.setSpeed(5);
     const store = createMemoryStore(); await saveGame(g, store, 1000);
     const t0 = g.sim.t;
-    const { game, away } = await loadGame(store, 1000 + 120_000);
+    const r = await loadGame(store, 1000 + 120_000);
+    if (!r.ok) throw new Error('expected a game');
+    const { game, away } = r;
     expect(game.speed).toBe(5);
     expect([...game.sim.buildings.values()].filter(b => b.type === 'market')).toHaveLength(1);
     expect(game.sim.residents.size).toBe(1);
     expect(game.sim.t - t0).toBe(120);
     expect(away!.simSeconds).toBe(120);
   });
-  it('an unsupported save version fails loudly instead of being overwritten', async () => {
-    await expect(loadGame(createMemoryStore({ version: 99, savedAt: 0, sim: {} as never }), 0)).rejects.toThrow(/version/);
+  it('a clearly-future version is reported as unsupported, and the stored save is left intact', async () => {
+    const stored = { version: SAVE_VERSION + 995, savedAt: 7, sim: { whatever: 1 } } as never;
+    const store = createMemoryStore(stored);
+    const r = await loadGame(store, 0);
+    expect(r).toMatchObject({ ok: false, reason: 'unsupported-version', data: stored });
+    expect(r.ok === false && r.error).toBeInstanceOf(SaveError);
+    expect(await store.load()).toEqual(stored);
+  });
+  it('a malformed save is reported as damaged, and the stored save is left intact', async () => {
+    for (const stored of [{ version: SAVE_VERSION, savedAt: 0 }, { version: SAVE_VERSION, savedAt: 0, sim: { t: 0 } }] as never[]) {
+      const store = createMemoryStore(stored);
+      const r = await loadGame(store, 0);
+      expect(r).toMatchObject({ ok: false, reason: 'damaged' });
+      expect(await store.load()).toEqual(stored);
+    }
+  });
+  it('a load that fails during catch-up leaves the returned data equal to the stored save', async () => {
+    // deserialize shares objects with its input and catchUp mutates them, so this only holds if loadGame works on a copy.
+    // (The memory store clones, so comparing store.load() alone could never see it.)
+    const g = createGame(); g.sim.coins = 500;
+    g.placeBuilding('house', 0, [-8, 0]); g.placeBuilding('farmPlot', 0, [0, 4]);
+    advance(g.sim, 100);
+    const broken = JSON.parse(JSON.stringify(serialize(g.sim, 1000, 1))) as SaveData;
+    delete (broken.sim.buildings.find(b => b.type === 'farmPlot') as { placement?: unknown }).placement;
+    const pristine = JSON.parse(JSON.stringify(broken));
+    const r = await loadGame(createMemoryStore(broken), 1000 + 6 * 3600 * 1000);
+    expect(r).toMatchObject({ ok: false, reason: 'damaged' });
+    if (r.ok) return;
+    expect(r.data).toEqual(pristine);
+  });
+  it('only a numeric version above SAVE_VERSION is "unsupported"; any other unknown version is damaged', () => {
+    const reasonOf = (version: unknown) => { try { migrate({ version, savedAt: 0, sim: {} } as never); } catch (e) { return (e as SaveError).reason; } };
+    expect(reasonOf(SAVE_VERSION + 1)).toBe('unsupported-version');
+    for (const v of [undefined, 0, 2.5, '5', null, -1]) expect(reasonOf(v)).toBe('damaged');
+  });
+  it('migrate and deserialize throw a SaveError a caller can branch on', () => {
+    expect(() => migrate({ version: 999, savedAt: 0, sim: {} as never })).toThrow(SaveError);
+    expect(() => deserialize({} as never)).toThrow(expect.objectContaining({ reason: 'damaged' }));
   });
 });

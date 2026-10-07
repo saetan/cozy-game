@@ -1,6 +1,7 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f0ea; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #3a3632; }
 #game { display: block; width: 100vw; height: 100vh; }
 #hud { flex-wrap: wrap; position: fixed; max-width: calc(100vw - 32px); box-sizing: border-box; top: 16px; left: 16px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255, 253, 250, 0.92); border: 1px solid rgba(58, 54, 50, 0.12); border-radius: 10px; font-size: 13px; }
+#hud[hidden] { display: none; }
 #hud button, .ui-panel button { font: inherit; min-height: 36px; padding: 0 12px; border-radius: 6px; border: 1px solid rgba(58, 54, 50, 0.2); background: #fdfbf8; cursor: pointer; touch-action: manipulation; }
 #hud button:hover, .ui-panel button:hover { background: #3a3632; color: #fdfbf8; }
 #hud button.primary, .ui-panel button.primary { background: #a6dcc4; }
@@ -49,3 +50,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f0ea; fon
 #away-card[hidden] { display: none; }
 #away-card ul { margin: 0; padding-left: 18px; }
 #away-card .card-title { font-size: 15px; }
+#recovery-card { top: 96px; left: 50%; transform: translateX(-50%); width: min(400px, calc(100vw - 32px)); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+#recovery-card p { margin: 0; }
+#recovery-card .card-title { font-size: 15px; }
