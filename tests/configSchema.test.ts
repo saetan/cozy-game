@@ -1,14 +1,10 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import balance from '../src/data/balance.json';
 import houseLevels from '../src/data/houseLevels.json';
 import trafficSrc from '../src/sim/traffic.ts?raw';
 import {
   MAX_HOUSE_LEVEL, SCHEMA, VEHICLES, WHEN_BUSY, checkChange, checkConfig, checkConfigWhole, configEntries, entriesFor, leaves,
 } from '../src/sim/configSchema';
-
-// PR #41 adds `abortRetrySeconds` to balance.json. Until it merges, its schema line matches no leaf.
-// Remove this tolerance (the set and the `continue` below) once #41 has merged.
-const PENDING = new Set(['abortRetrySeconds']);
 
 const clone = () => JSON.parse(JSON.stringify(balance));
 const all = leaves(balance);
@@ -20,7 +16,6 @@ describe('schema coverage', () => {
   });
   it('every schema entry matches at least one leaf', () => {
     for (const e of SCHEMA) {
-      if (PENDING.has(e.pattern)) continue;
       expect(all.some(([p]) => entriesFor(p)[0] === e), e.pattern).toBe(true);
     }
   });
@@ -47,20 +42,19 @@ describe('pinned copies of data', () => {
   });
 });
 
-describe('wired flag', () => {
+describe('wired set', () => {
   it('no key is wired yet, so every change is refused in live mode', () => {
     expect(checkConfig(balance, 'traffic.lane.capacity', 2, 'live')).toEqual({ ok: false, reason: 'traffic.lane.capacity: not adjustable in this build yet' });
     expect(configEntries(balance).some(r => r.wired)).toBe(false);
+    expect(checkConfig(balance, 'traffic.lane.capacity', 2, 'live', ['traffic.*.capacity'])).toEqual({ ok: true });
+    expect(checkConfig(balance, 'traffic.lane.whenBusy', 'wait', 'live', ['traffic.*.capacity']).ok).toBe(false);
+    expect(configEntries(balance, ['traffic.*.capacity']).filter(r => r.wired).map(r => r.path)).toEqual(['traffic.lane.capacity', 'traffic.dirtLane.capacity']);
   });
 });
 
 describe('checkConfig and checkChange (every key treated as wired)', () => {
-  const was = SCHEMA.map(e => e.wired);
-  beforeAll(() => { for (const e of SCHEMA) e.wired = true; });
-  afterAll(() => { SCHEMA.forEach((e, i) => { e.wired = was[i]; }); });
-
-  const ok = (p: string, v: unknown, mode: 'live' | 'newVillage' = 'live') => expect(checkConfig(balance, p, v, mode), `${p}=${JSON.stringify(v)}`).toEqual({ ok: true });
-  const no = (p: unknown, v: unknown, mode: 'live' | 'newVillage' = 'live') => expect(checkConfig(balance, p, v, mode).ok, `${String(p)}=${JSON.stringify(v)}`).toBe(false);
+  const ok = (p: string, v: unknown, mode: 'live' | 'newVillage' = 'live') => expect(checkConfig(balance, p, v, mode, 'all'), `${p}=${JSON.stringify(v)}`).toEqual({ ok: true });
+  const no = (p: unknown, v: unknown, mode: 'live' | 'newVillage' = 'live') => expect(checkConfig(balance, p, v, mode, 'all').ok, `${String(p)}=${JSON.stringify(v)}`).toBe(false);
 
   it('the shipped defaults pass for every non-fixed key (newVillage keys in newVillage mode)', () => {
     for (const [path, v] of all) {
@@ -85,8 +79,7 @@ describe('checkConfig and checkChange (every key treated as wired)', () => {
     ok('specialistMultiplier', 1); no('specialistMultiplier', 0.9); ok('specialistMultiplier', 5); no('specialistMultiplier', 5.1);
     ok('scarecrow.growthMultiplier', 1); no('scarecrow.growthMultiplier', 0.9);
     ok('traits.chatty.speed.sell', 0.5); no('traits.chatty.speed.sell', 0.4); no('traits.chatty.speed.sell', 5.1);
-    // abortRetrySeconds (min 5) is not in balance.json until PR #41, so its bound is not testable yet
-    expect(SCHEMA.find(e => e.pattern === 'abortRetrySeconds')!.min).toBe(5);
+    ok('abortRetrySeconds', 5); no('abortRetrySeconds', 4.9); ok('abortRetrySeconds', 60); no('abortRetrySeconds', 601);
   });
   it('fraction: 0 to 1, and tighter bounds where zero or one break things', () => {
     ok('workStart', 0); ok('workStart', 1); no('workStart', 1.01); no('workStart', -0.01);
@@ -127,22 +120,22 @@ describe('checkConfig and checkChange (every key treated as wired)', () => {
     no('species.0', 'dog'); no('traits.sleepy.name', 'x');
   });
   it('exact refusal text', () => {
-    expect(checkConfig(balance, 'traffic.lane.capacity', 0, 'live')).toEqual({ ok: false, reason: 'traffic.lane.capacity: whole number 1 to 20, or null' });
-    expect(checkConfig(balance, 'walking.speed.grass', -1, 'live')).toEqual({ ok: false, reason: 'walking.speed.grass: number 0.5 to 50' });
-    expect(checkConfig(balance, 'traffic.lane.whenBusy', 'x', 'live')).toEqual({ ok: false, reason: 'traffic.lane.whenBusy: one of wait, waitOrWalk, ignore' });
-    expect(checkConfig(balance, 'waterFraction', 1, 'live')).toEqual({ ok: false, reason: 'waterFraction: number 0.05 to 0.95' });
+    expect(checkConfig(balance, 'traffic.lane.capacity', 0, 'live', 'all')).toEqual({ ok: false, reason: 'traffic.lane.capacity: whole number 1 to 20, or null' });
+    expect(checkConfig(balance, 'walking.speed.grass', -1, 'live', 'all')).toEqual({ ok: false, reason: 'walking.speed.grass: number 0.5 to 50' });
+    expect(checkConfig(balance, 'traffic.lane.whenBusy', 'x', 'live', 'all')).toEqual({ ok: false, reason: 'traffic.lane.whenBusy: one of wait, waitOrWalk, ignore' });
+    expect(checkConfig(balance, 'waterFraction', 1, 'live', 'all')).toEqual({ ok: false, reason: 'waterFraction: number 0.05 to 0.95' });
   });
   it('defaultCrop without usable options does not print an empty list', () => {
-    const r = checkConfig({ ...clone(), crops: {} }, 'defaultCrop', 'x', 'newVillage');
+    const r = checkConfig({ ...clone(), crops: {} }, 'defaultCrop', 'x', 'newVillage', 'all');
     expect(r.ok === false && r.reason).toBe('defaultCrop: one of the crops in the config');
   });
   it('checkChange applies the whole-config checks to the merged result', () => {
-    expect(checkChange(balance, 'workStart', 0.3, 'live')).toEqual({ ok: true });
-    const r = checkChange(balance, 'workStart', 0.9, 'live');
+    expect(checkChange(balance, 'workStart', 0.3, 'live', 'all')).toEqual({ ok: true });
+    const r = checkChange(balance, 'workStart', 0.9, 'live', 'all');
     expect(r.ok === false && r.reason).toMatch(/^workStart: workStart \(0\.9\) must be less than workEnd/);
-    expect(checkChange(balance, 'workStart', 5, 'live').ok).toBe(false); // per-key refusal first
-    expect(checkChange(balance, 'arrivalLevels.0', 2, 'live').ok).toBe(false); // would drop level 1
-    expect(checkChange(balance, 'traffic.lane.capacity', 3, 'live')).toEqual({ ok: true });
+    expect(checkChange(balance, 'workStart', 5, 'live', 'all').ok).toBe(false); // per-key refusal first
+    expect(checkChange(balance, 'arrivalLevels.0', 2, 'live', 'all').ok).toBe(false); // would drop level 1
+    expect(checkChange(balance, 'traffic.lane.capacity', 3, 'live', 'all')).toEqual({ ok: true });
     expect(balance.workStart).toBe(0.25); // the input is not mutated
   });
 });

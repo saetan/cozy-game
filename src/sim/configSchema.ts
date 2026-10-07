@@ -24,8 +24,6 @@ export interface SchemaEntry {
   class: ConfigClass;
   /** Why the key is not live (shown in the panel and in refusals). */
   reason?: string;
-  /** True once the stage that converts this key's readers to the live config has merged. Only wired keys can be changed. */
-  wired?: boolean;
 }
 
 export const VEHICLES = ['bicycle', 'wagon', 'car'] as const; // pinned to balance.json by a test
@@ -103,6 +101,15 @@ function matches(pattern: string, path: string): boolean {
 /** The schema entries matching a dotted path (the coverage test requires exactly one per balance.json leaf). */
 export const entriesFor = (path: string): SchemaEntry[] => SCHEMA.filter(e => matches(e.pattern, path));
 
+/**
+ * Schema patterns whose readers have been converted to the live config. Only these can be changed; a stage that
+ * converts a family adds its pattern here (stage 3: the `traffic.*` patterns). Nothing is wired yet.
+ */
+export const WIRED: readonly string[] = [];
+/** Which patterns count as wired; tests pass 'all' to exercise the value checks. */
+export type WiredSet = readonly string[] | 'all';
+const isWired = (e: SchemaEntry, wired: WiredSet): boolean => wired === 'all' || wired.includes(e.pattern);
+
 export type CheckResult = { ok: true } | { ok: false; reason: string };
 /** Where the change is made: into a running village, or into the settings of a new one. */
 export type ConfigMode = 'live' | 'newVillage';
@@ -151,14 +158,14 @@ function describe(e: SchemaEntry, config?: unknown): string {
  * Validates one change against the config it would apply to. Refuses paths that are not an own leaf of `config`,
  * fixed keys, keys that do not apply in `mode`, keys not wired yet, and values outside the schema.
  */
-export function checkConfig(config: unknown, path: unknown, value: unknown, mode: ConfigMode): CheckResult {
+export function checkConfig(config: unknown, path: unknown, value: unknown, mode: ConfigMode, wired: WiredSet = WIRED): CheckResult {
   if (typeof path !== 'string') return { ok: false, reason: 'path: must be a text path such as traffic.lane.capacity' };
   const found = entriesFor(path);
   if (found.length === 0 || !isLeafOf(config, path)) return { ok: false, reason: `${path}: unknown setting` };
   const e = found[0];
   if (e.class === 'fixed') return { ok: false, reason: `${path}: fixed, edit src/data/balance.json (${e.reason})` };
   if (e.class === 'newVillage' && mode === 'live') return { ok: false, reason: `${path}: only for a new village (${e.reason})` };
-  if (!e.wired) return { ok: false, reason: `${path}: not adjustable in this build yet` };
+  if (!isWired(e, wired)) return { ok: false, reason: `${path}: not adjustable in this build yet` };
   const bad = (): CheckResult => ({ ok: false, reason: `${path}: ${describe(e, config)}` });
   const good: CheckResult = { ok: true };
   if (value === null) return e.nullable ? good : bad();
@@ -207,8 +214,8 @@ export function checkConfigWhole(config: unknown): string[] {
 }
 
 /** One entry point for a whole change: the per-key check, then the whole-config checks on the merged result. */
-export function checkChange(config: unknown, path: unknown, value: unknown, mode: ConfigMode): CheckResult {
-  const r = checkConfig(config, path, value, mode);
+export function checkChange(config: unknown, path: unknown, value: unknown, mode: ConfigMode, wired: WiredSet = WIRED): CheckResult {
+  const r = checkConfig(config, path, value, mode, wired);
   if (!r.ok) return r;
   const merged = structuredClone(config) as Record<string, any>;
   const segs = (path as string).split('.');
@@ -245,13 +252,13 @@ export function leaves(config: unknown): [string, unknown][] {
 }
 
 /** A flat, stably ordered list of every concrete key in the config with its schema entry (for the tuning panel). */
-export function configEntries(config: unknown): ConfigEntry[] {
+export function configEntries(config: unknown, wired: WiredSet = WIRED): ConfigEntry[] {
   const rows: ConfigEntry[] = [];
   for (const [path] of leaves(config)) {
     const e = entriesFor(path)[0];
     if (!e) continue; // the coverage test fails on this
     const options = e.options === '{crops}' ? optionsOf(e, config) : e.options ?? e.itemOptions;
-    rows.push({ path, kind: e.kind, min: e.min, max: e.max, options, nullable: !!e.nullable, group: e.group, class: e.class, reason: e.reason, wired: !!e.wired });
+    rows.push({ path, kind: e.kind, min: e.min, max: e.max, options, nullable: !!e.nullable, group: e.group, class: e.class, reason: e.reason, wired: isWired(e, wired) });
   }
   // group order, then the config's own key order; Array.sort is stable
   return rows.sort((a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group));
