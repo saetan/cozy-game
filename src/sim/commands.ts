@@ -8,7 +8,7 @@ import { canAfford, costOf, scaleCost, spend, type Cost } from './costs';
 import { levelSpec, levelUpCheck } from './levels';
 import { cropInfo, emptyStock, isCrop } from './crops';
 import { arrive, arrivesAt, createResident } from './residents';
-import { isLane, laneJoinProblem, streetAt, streetKey, streetTileCells, streetTileOf } from './surfaces';
+import { isLane, laneJoinProblem, roadsChanged, streetAt, streetKey, streetTileCells, streetTileOf } from './surfaces';
 import type { Building, BuildingType, Cell, Role, SimState, StreetKind, TileKind, TraitId } from './state';
 
 export type Command =
@@ -59,6 +59,7 @@ export function apply(sim: SimState, cmd: Command): CommandResult {
       spend(sim, cost);
       const p = place(sim.world, fp, cmd.rotation, ox, oz, frame)!;
       for (const [x, z] of worldCells(fp, cmd.rotation, ox, oz, frame)) sim.tiles.delete(cellKey(x, z));
+      roadsChanged();
       const b = { id: p.id, type: cmd.building, placement: p, level: 1 } as Building;
       if (b.type === 'farmPlot') { b.crop = balance.defaultCrop; b.plotState = 'empty'; b.crates = 0; }
       if (b.type === 'market') b.stock = emptyStock();
@@ -78,6 +79,7 @@ export function apply(sim: SimState, cmd: Command): CommandResult {
       b.level++;
       p.footprint = levelSpec(b.type)!.cells(b.level);
       for (const [x, z] of check.newCells) { occupy(sim.world, x, z, p.id); sim.tiles.delete(cellKey(x, z)); }
+      roadsChanged();
       if (b.type === 'house') sim.log.push({ t: sim.t, kind: 'levelUp', houseId: b.id, level: b.level });
       // anyone idling on a cell the building just grew over steps back out to the door
       const own = new Set(placementCells(p).map(([x, z]) => cellKey(x, z)));
@@ -133,6 +135,7 @@ export function apply(sim: SimState, cmd: Command): CommandResult {
       if (why) return fail(why);
       spend(sim, scaleCost(costOf(kind), cells.length));
       for (const [x, z] of cells) sim.tiles.set(cellKey(x, z), kind);
+      roadsChanged();
       return { ok: true };
     }
     case 'setStreet': {
@@ -180,6 +183,7 @@ export function streetPlan(sim: SimState, all: Cell[], kind: StreetKind): string
 function swap(sim: SimState, streets: SimState['streets'], tiles: SimState['tiles']) {
   sim.streets.clear(); for (const [k, v] of streets) sim.streets.set(k, v);
   sim.tiles.clear(); for (const [k, v] of tiles) sim.tiles.set(k, v);
+  roadsChanged();
 }
 
 /** Erase: a street or dirt road cell removes its whole 6 m tile, any other cell its lane or path. No refund. */

@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { CELL, DIRT_H, ORDER, ROAD_MAT, SIDE, TILE, buildLanes, buildRoads, grp, pathTile, type RoadItem } from '../kit/index.js';
 import type { SimState } from '../sim/state';
+import { roadRevision } from '../sim/surfaces';
 import { cellKey } from '../sim/world';
 import { popIn } from './houseView';
 
@@ -48,11 +49,11 @@ export function buildRoadItems(src: RoadSource): RoadItem[] {
 
 export function createRoadView(scene: THREE.Scene, src: RoadSource) {
   const views = new Map<string, THREE.Object3D>();
-  let first = true, last = '';
+  let first = true, last = -1;
   function sync(now: number) {
-    const sig = `${[...src.streets].join(';')}|${[...src.tiles].join(';')}`; // cheap: skips the kit's network pass on frames where nothing changed
-    if (sig === last) return;
-    last = sig;
+    const rev = roadRevision(); // a counter the road commands bump: nothing to compare or build on frames where roads did not change
+    if (rev === last) return;
+    last = rev;
     const items = buildRoadItems(src), keep = new Set(items.map(i => i.key));
     for (const [key, o] of views) if (!keep.has(key)) { scene.remove(o); views.delete(key); }
     for (const it of items) {
