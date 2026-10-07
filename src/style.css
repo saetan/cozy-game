@@ -49,3 +49,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f0ea; fon
 #away-card[hidden] { display: none; }
 #away-card ul { margin: 0; padding-left: 18px; }
 #away-card .card-title { font-size: 15px; }
+#recovery-card { top: 96px; left: 50%; transform: translateX(-50%); width: min(400px, calc(100vw - 32px)); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+#recovery-card p { margin: 0; }
+#recovery-card .card-title { font-size: 15px; }

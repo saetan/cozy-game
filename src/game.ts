@@ -5,7 +5,7 @@ import { levelSpec } from './sim/levels';
 import type { BuildingType, Cell } from './sim/state';
 import type { Frame, Rotation } from './systems/placement';
 import { catchUp, type AwaySummary } from './systems/catchup';
-import { deserialize, serialize, type SaveData, type SaveStore } from './systems/save';
+import { deserialize, SaveError, serialize, type SaveData, type SaveProblem, type SaveStore } from './systems/save';
 
 export const SEED = 1;
 export const MAX_FRAME_DT = 0.25;
@@ -52,13 +52,22 @@ export const frameOf = (t: BuildingType): Frame | undefined => levelSpec(t)?.fra
 
 export const saveGame = (g: Game, store: SaveStore, now: number) => store.save(serialize(g.sim, now, g.speed));
 
-/** Startup from a store: loads + catches up an existing save, else a new game. An unreadable store counts as no save; an unsupported version throws (never silently overwritten). */
-export async function loadGame(store: SaveStore, now: number): Promise<{ game: Game; away: AwaySummary | null }> {
+export type LoadResult =
+  | { ok: true; game: Game; away: AwaySummary | null }
+  | { ok: false; reason: SaveProblem; data: SaveData }; // the stored save, untouched, for the recovery screen
+
+/** Startup from a store: loads + catches up an existing save, else a new game. A store that cannot be read counts as no save.
+ *  A save that exists but cannot be loaded comes back as `ok: false` with the stored data; nothing is written or cleared. */
+export async function loadGame(store: SaveStore, now: number): Promise<LoadResult> {
   let data: SaveData | null = null;
   try { data = await store.load(); } catch { data = null; }
-  if (!data) return { game: createGame(), away: null };
-  const sim = deserialize(data);
-  const away = catchUp(sim, data.savedAt, now);
-  const speed = SPEEDS.find(s => s === data!.speed) ?? 1;
-  return { game: createGame({ sim, speed }), away };
+  if (!data) return { ok: true, game: createGame(), away: null };
+  try {
+    const sim = deserialize(data);
+    const away = catchUp(sim, data.savedAt, now);
+    const speed = SPEEDS.find(s => s === data!.speed) ?? 1;
+    return { ok: true, game: createGame({ sim, speed }), away };
+  } catch (e) {
+    return { ok: false, reason: e instanceof SaveError ? e.reason : 'damaged', data };
+  }
 }

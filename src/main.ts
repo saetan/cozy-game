@@ -15,6 +15,7 @@ import { createIdbStore, serialize } from './systems/save';
 import { catchUp } from './systems/catchup';
 import { showAway, shouldShowAway } from './ui/away';
 import { createSaveMenu } from './ui/saveMenu';
+import { showRecovery } from './ui/recovery';
 import { dayOf, timeOfDay } from './sim/clock';
 import { CELL } from './kit/index.js';
 import { advance } from './sim/sim';
@@ -26,7 +27,13 @@ const canvas = document.getElementById('game') as HTMLCanvasElement;
 const { scene, camera, controls, setPaintMode, onFrame } = createScene(canvas);
 const demo = new URLSearchParams(location.search).has('demo'); // demo: always fresh, never loads or saves
 const store = createIdbStore();
-const { game, away } = demo ? { game: createGame({ demo }), away: null } : await loadGame(store, Date.now());
+const loaded = demo ? { ok: true as const, game: createGame({ demo }), away: null } : await loadGame(store, Date.now());
+if (!loaded.ok) { // an unreadable save: stop here, so nothing (autosave included) touches it until the player chooses
+  showRecovery(document.body, loaded, store);
+  await new Promise<never>(() => {}); // never settles
+  throw new Error('unreachable'); // narrows `loaded` below
+}
+const { game, away } = loaded;
 const { sim } = game;
 const chunks = createChunkView(sim.world);
 scene.add(chunks.root);
