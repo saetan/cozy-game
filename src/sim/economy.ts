@@ -4,7 +4,7 @@ import { accessCell, travelTime } from '../systems/pathfinding';
 import { isWorkHours, nextWorkEnd, nextWorkStart } from './clock';
 import { pushEvent, type SimEvent } from './events';
 import { cropInfo, nextSale, stockTotal } from './crops';
-import { claimJob, completeJob, market, pickJob, ROLE_OF, syncMarket, syncPlot } from './jobs';
+import { canStore, claimJob, completeJob, harvestFits, market, pickJob, ROLE_OF, syncMarket, syncPlot } from './jobs';
 import { carryCapacity, traitSpeed, workDelay } from './traits';
 import { growthMultiplier } from './decor';
 import { reserve } from './traffic';
@@ -86,7 +86,7 @@ function abort(sim: SimState, r: Resident, job: Job): void {
     // keeps them and the job (stage: deliver), retrying the market after the back-off: never relabelled, never lost.
     const label = r.carryingCrop ?? balance.defaultCrop;
     const held = plot?.crates ?? 0;
-    const fits = plot && (!held || (plot.crateCrop ?? plot.crop) === label) && held + r.carrying <= balance.maxCrates;
+    const fits = plot && canStore(plot, label, r.carrying);
     if (!fits) { stand(sim, r, 'idle', sim.t + balance.abortRetrySeconds); return; }
     if (!held) plot.crateCrop = label;
     plot.crates = held + r.carrying;
@@ -122,8 +122,9 @@ function applyEffect(sim: SimState, r: Resident, job: Job, effect: string): void
       // Invariant (enforced here, where the label is written): a plot's crates all share one crop and never exceed
       // maxCrates. The job may be stale (crates were returned after it was posted), so re-check. A blocked harvest
       // changes nothing: the crop stays ripe in the ground and the job ends; syncPlot re-posts it only once it fits.
+      // syncPlot posts harvests with the same predicate (harvestFits), so a blocked job is never re-posted until it fits.
+      if (!harvestFits(plot!)) break;
       const held = plot!.crates ?? 0, crop = plot!.growCrop ?? plot!.crop;
-      if (held >= balance.maxCrates || (held && plot!.crateCrop !== crop)) break;
       plot!.plotState = 'empty'; plot!.crateCrop = crop; plot!.crates = held + 1; sim.stats.harvested++; break;
     }
     case 'pickup': {
