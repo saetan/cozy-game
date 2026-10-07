@@ -314,7 +314,8 @@ describe('tiles', () => {
     apply(sim, { type: 'setTile', cells: [[4, 0], [5, 0], [6, 0]], kind: 'lane' });
     const fast = findPath(sim.world, surfaceLookup(sim), [0, 0], [6, 0])!.cost;
     expect(bare).toBe(6);
-    expect(fast).toBeCloseTo(3 * 2 / 3 + 3 * 2 / 2.5); // 3 path cells at speed 3, 3 lane cells at 2.5, in grass-cells (speed 2)
+    const w = balance.walking.speed;
+    expect(fast).toBeCloseTo((3 * w.grass) / w.path + (3 * w.grass) / w.lane); // 3 path cells + 3 lane cells, in grass-cells
   });
   it('snapshot includes tiles deterministically', () => {
     const a = village(), b = village();
