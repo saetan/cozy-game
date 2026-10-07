@@ -1,5 +1,6 @@
 // Game wiring: owns the sim (single source of truth). No three.js, so it is testable headlessly.
 import { advance, apply, createSim, type Command, type CommandResult, type SimState } from './sim/sim';
+import { trimLog } from './sim/log';
 import { footprintFor } from './sim/commands';
 import { levelSpec } from './sim/levels';
 import type { BuildingType, Cell } from './sim/state';
@@ -33,6 +34,7 @@ export function createGame(opts: { demo?: boolean; sim?: SimState; speed?: Speed
     frame(realDt) {
       const dt = Math.min(Math.max(realDt, 0), MAX_FRAME_DT);
       advance(sim, dt * game.speed);
+      trimLog(sim);
     },
   };
   if (opts.sim) return game; // loaded village: market and everything else already exist

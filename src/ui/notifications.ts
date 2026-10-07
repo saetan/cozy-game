@@ -1,4 +1,4 @@
-// Arrival cards (queued, dismissed with OK) and level-up toasts. Reads sim.log by index; never mutates it.
+// Arrival cards (queued, dismissed with OK) and level-up toasts. Reads sim.log; never mutates it.
 import { LEVELS } from '../kit/index.js';
 import { traitInfo } from '../sim/traits';
 import type { SimState } from '../sim/state';
@@ -6,7 +6,7 @@ import { el } from './dom';
 
 export function createNotifications(sim: SimState, root: HTMLElement) {
   const card = root.querySelector<HTMLElement>('#arrival-card')!, toast = root.querySelector<HTMLElement>('#toast')!;
-  let seen = sim.log.length; // entries from before the UI existed (e.g. the demo village) are not announced
+  let last = sim.log.at(-1); // the newest entry announced (a reference, since the log is trimmed at the front); earlier ones, e.g. the demo village, are not announced
   const queue: number[] = []; // resident ids waiting for their card
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -31,10 +31,11 @@ export function createNotifications(sim: SimState, root: HTMLElement) {
   return {
     say,
     /** Treat every log entry so far as announced (after a catch-up whose summary already lists them). */
-    skipSeen() { seen = sim.log.length; },
+    skipSeen() { last = sim.log.at(-1); },
     update() {
-      while (seen < sim.log.length) {
-        const e = sim.log[seen++];
+      const from = last ? sim.log.lastIndexOf(last) + 1 : 0; // trimmed past it: everything left is new
+      last = sim.log.at(-1) ?? last;
+      for (const e of sim.log.slice(from)) {
         if (e.kind === 'arrival') { queue.push(e.residentId); showCard(); }
         else say(`House grew to Lv ${e.level} · ${LEVELS[e.level - 1].name}`);
       }
