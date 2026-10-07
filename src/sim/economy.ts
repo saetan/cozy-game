@@ -87,14 +87,14 @@ function abort(sim: SimState, r: Resident, job: Job): void {
     const label = r.carryingCrop ?? balance.defaultCrop;
     const held = plot?.crates ?? 0;
     const fits = plot && (!held || (plot.crateCrop ?? plot.crop) === label) && held + r.carrying <= balance.maxCrates;
-    if (!fits) { stand(sim, r, 'idle', sim.t + 60); return; }
+    if (!fits) { stand(sim, r, 'idle', sim.t + balance.abortRetrySeconds); return; }
     if (!held) plot.crateCrop = label;
     plot.crates = held + r.carrying;
   }
   r.carrying = 0; delete r.carryingCrop;
   completeJob(sim, r);
   finishSync(sim, job);
-  stand(sim, r, 'idle', sim.t + 60); // back off briefly instead of retrying a broken job in a loop
+  stand(sim, r, 'idle', sim.t + balance.abortRetrySeconds); // back off briefly instead of retrying a broken job in a loop
 }
 function finishSync(sim: SimState, job: Job): void {
   const b = sim.buildings.get(job.targetId);
@@ -118,8 +118,14 @@ function applyEffect(sim: SimState, r: Resident, job: Job, effect: string): void
       pushEvent(sim.queue, sim.t + crop.growTime * (1 - balance.waterFraction) / growthMultiplier(sim, plot!), { kind: 'plot', plotId: plot!.id, stage: 'ripe' });
       break;
     }
-    case 'harvest':
-      plot!.plotState = 'empty'; plot!.crateCrop = plot!.growCrop ?? plot!.crop; plot!.crates = (plot!.crates ?? 0) + 1; sim.stats.harvested++; break;
+    case 'harvest': {
+      // Invariant (enforced here, where the label is written): a plot's crates all share one crop and never exceed
+      // maxCrates. The job may be stale (crates were returned after it was posted), so re-check. A blocked harvest
+      // changes nothing: the crop stays ripe in the ground and the job ends; syncPlot re-posts it only once it fits.
+      const held = plot!.crates ?? 0, crop = plot!.growCrop ?? plot!.crop;
+      if (held >= balance.maxCrates || (held && plot!.crateCrop !== crop)) break;
+      plot!.plotState = 'empty'; plot!.crateCrop = crop; plot!.crates = held + 1; sim.stats.harvested++; break;
+    }
     case 'pickup': {
       const wagon = freeVehicles(sim, r).includes('wagon') ? vehicleInfo('wagon').carry! : 1; // capacity: trait or wagon, not both
       const n = 1 + pickupExtra(sim, plot!, job, Math.max(carryCapacity(r), wagon) - 1);

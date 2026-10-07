@@ -4,6 +4,7 @@ import { DAY_LENGTH } from '../src/sim/clock';
 import { step } from '../src/sim/economy';
 import { advance, apply, createSim, snapshot, type SimState } from '../src/sim/sim';
 import { claimJob, market, postJob } from '../src/sim/jobs';
+import { describeActivity } from '../src/ui/activity';
 import { deserialize, serialize } from '../src/systems/save';
 import type { Building } from '../src/sim/state';
 
@@ -13,7 +14,10 @@ const crates = (sim: SimState, c: string) =>
   [...sim.buildings.values()].reduce((n, b) => n + (b.crateCrop === c ? (b.crates ?? 0) : 0) + (b.stock?.[c] ?? 0), 0)
   + [...sim.residents.values()].reduce((n, r) => n + (r.carryingCrop === c ? r.carrying : 0), 0);
 
-/** A hauler next to the plot holding `carried` crates of `crop`; the market is removed so its walk fails and the job aborts. */
+/** Hand-built on purpose: a deliver-stage abort with a crop mismatch needs the route re-planned mid-walk, and
+ *  deleting a market cannot happen in play (no command removes a building), so no command sequence reaches this state.
+ *  The command-only route is in abortCratesScenario.test.ts.
+ *  A hauler next to the plot holding `carried` crates of `crop`; the market is removed so its walk fails and the job aborts. */
 function scene(carried: number, crop: string, plotCrop: string, plotCrates: number) {
   const sim = createSim({ seed: 1 });
   apply(sim, { type: 'placeBuilding', building: 'market', rotation: 0, origin: [4, 0] });
@@ -88,5 +92,26 @@ describe('abort while carrying crates', () => {
     const copy = roundTrip(sim);
     const cr = copy.residents.get(1)!;
     expect(cr.carrying).toBe(1); expect(cr.carryingCrop).toBe('carrot'); expect(cr.jobId).toBe(r.jobId);
+  });
+  it('shows its own activity text while holding crates it cannot deliver', () => {
+    const { sim, r } = scene(1, 'carrot', 'cabbage', 2);
+    step(sim, r);
+    expect(describeActivity(sim, r)).toBe('Cannot reach the market');
+    sim.t = 0.1 * DAY_LENGTH; // still held at night
+    expect(describeActivity(sim, r)).toBe('Cannot reach the market');
+  });
+  // Hand-built: a ripe plot with a harvest already posted while 3 crates come back is not reachable by commands alone.
+  it('a stale harvest cannot push a plot past the crate limit or onto another crop', () => {
+    const { sim, plot, r } = scene(balance.maxCrates, 'carrot', 'carrot', 0);
+    plot.plotState = 'ripe'; plot.growCrop = 'carrot'; plot.crop = 'carrot';
+    const harvest = postJob(sim, 'harvest', plot.id);
+    step(sim, r); // returns 3 carrots
+    expect(plot.crates).toBe(balance.maxCrates);
+    const f = sim.residents.get(1)!; f.jobId = null; claimJob(sim, harvest, f); // harvest job now runs against a full plot
+    f.cell = [0, 5];
+    for (let i = 0; i < 100 && sim.jobs.has(harvest.id); i++) advance(sim, 5);
+    expect(plot.crates).toBe(balance.maxCrates);
+    expect(plot.plotState).toBe('ripe');
+    expect(sim.stats.harvested).toBe(0);
   });
 });

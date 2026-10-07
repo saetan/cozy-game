@@ -17,6 +17,7 @@ export function describeActivity(sim: SimState, r: Resident): string {
     if (r.task.path) return r.carrying ? 'Carrying crates to the market' : job.kind === 'sell' ? 'Walking to the market' : 'Walking to the field';
     return JOB_TEXT[job.kind];
   }
+  if (job && r.carrying && r.task?.kind === 'idle') return 'Cannot reach the market'; // holding crates after a failed delivery walk
   return isWorkHours(sim.t, workDelay(r)) ? 'Waiting for work' : 'Resting at home';
 }
 export const ROLE_LABEL: Record<string, string> = { generalist: 'Generalist', farmer: 'Farmer', hauler: 'Hauler', seller: 'Seller' };
