@@ -1,5 +1,5 @@
 // Save format: versioned plain JSON of the whole sim (Maps/Sets as entry arrays) + SaveStore interface.
-import balance from '../data/balance.json';
+import { DEFAULTS } from '../sim/config';
 import { emptyStock } from '../sim/crops';
 import { MARKET_FRAME } from '../sim/levels';
 import { createEventQueue, type QueuedEvent } from '../sim/events';
@@ -46,10 +46,10 @@ export function serialize(sim: SimState, savedAt = 0, speed?: number): SaveData 
 /** v1 -> v2: carrot-only unlocks, stock and crates as carrot, market gets its growth frame (Lv1), no land bought. */
 function v1ToV2(data: SaveData): SaveData {
   const sim = JSON.parse(JSON.stringify(data.sim)) as SimData;
-  sim.unlockedCrops = [balance.defaultCrop]; sim.chunksBought = 0;
+  sim.unlockedCrops = [DEFAULTS.defaultCrop]; sim.chunksBought = 0;
   for (const b of sim.buildings) {
     if (b.type !== 'market') continue;
-    b.stock = { ...emptyStock(), [balance.defaultCrop]: typeof b.stock === 'number' ? b.stock : 0 };
+    b.stock = { ...emptyStock(), [DEFAULTS.defaultCrop]: typeof b.stock === 'number' ? b.stock : 0 };
     b.placement.frame = MARKET_FRAME;
   }
   return { ...data, version: 2, sim };

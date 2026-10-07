@@ -1,5 +1,5 @@
 // Decor: shrub and fence are cosmetic; a scarecrow speeds up nearby plots (never stacking).
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import type { Building, BuildingType, SimState } from './state';
 
 export const DECOR: readonly BuildingType[] = ['shrub', 'fence', 'scarecrow'];
@@ -10,7 +10,7 @@ export function growthMultiplier(sim: SimState, plot: Building): number {
   const [px, pz] = plot.placement.origin;
   for (const b of sim.buildings.values()) {
     if (b.type !== 'scarecrow') continue;
-    if (Math.max(Math.abs(b.placement.origin[0] - px), Math.abs(b.placement.origin[1] - pz)) <= balance.scarecrow.radius) return balance.scarecrow.growthMultiplier;
+    if (Math.max(Math.abs(b.placement.origin[0] - px), Math.abs(b.placement.origin[1] - pz)) <= DEFAULTS.scarecrow.radius) return DEFAULTS.scarecrow.growthMultiplier;
   }
   return 1;
 }

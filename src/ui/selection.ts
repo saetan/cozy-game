@@ -11,7 +11,7 @@ import { VEHICLES, isUnlocked as vehicleUnlocked, unlockLevel } from '../sim/veh
 import { isDecor } from '../sim/decor';
 import type { Game } from '../game';
 import type { Building, BuildingType, Resident, Role } from '../sim/state';
-import balance from '../data/balance.json';
+import { DEFAULTS } from '../sim/config';
 import { cap, el } from './dom';
 import { ROLE_LABEL, describeActivity, roleKey } from './activity';
 
@@ -117,7 +117,7 @@ export function createSelection(d: SelectionDeps) {
   }
   const DECOR_TEXT: Record<string, [string, string]> = {
     shrub: ['Shrub', 'A leafy bush. Just for looks.'], fence: ['Fence', 'A little fence. Just for looks.'],
-    scarecrow: ['Scarecrow', `Plots within ${balance.scarecrow.radius} cells grow ${Math.round((balance.scarecrow.growthMultiplier - 1) * 100)}% faster (scarecrows do not stack).`],
+    scarecrow: ['Scarecrow', `Plots within ${DEFAULTS.scarecrow.radius} cells grow ${Math.round((DEFAULTS.scarecrow.growthMultiplier - 1) * 100)}% faster (scarecrows do not stack).`],
   };
   function renderDecor(b: Building) {
     const key = `d|${b.id}`;
@@ -169,7 +169,7 @@ export function createSelection(d: SelectionDeps) {
       const status = el('div', { class: 'panel-line', id: 'plot-status' });
       live = () => {
         const grow = b.plotState === 'empty' ? '' : ` ${cap(b.growCrop ?? b.crop ?? '')}`;
-        status.textContent = `${STATE_TEXT[b.plotState ?? 'empty']}${grow} · Crates: ${b.crates ?? 0}/${balance.maxCrates}`;
+        status.textContent = `${STATE_TEXT[b.plotState ?? 'empty']}${grow} · Crates: ${b.crates ?? 0}/${DEFAULTS.maxCrates}`;
       };
       const picker = el('div', { class: 'crops', role: 'group', 'aria-label': 'Crop' });
       for (const c of CROPS) {

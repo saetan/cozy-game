@@ -1,9 +1,9 @@
 // Trait effects (balance.traits). Pure lookups used by the economy.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import type { Resident } from './state';
 
 type TraitDef = { name: string; desc: string; speed?: Record<string, number>; carry?: number; workStartDelay?: number };
-const def = (r: Pick<Resident, 'trait'>): TraitDef => balance.traits[r.trait] as TraitDef;
+const def = (r: Pick<Resident, 'trait'>): TraitDef => DEFAULTS.traits[r.trait] as TraitDef;
 
 export const traitInfo = (r: Pick<Resident, 'trait'>): { name: string; desc: string } => def(r);
 /** Task-duration divisor from the trait for a balance.times key (1 = no effect). Stacks with the specialist multiplier. */

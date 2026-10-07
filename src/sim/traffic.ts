@@ -4,7 +4,7 @@
 // Model: the lane network (`lane` + `dirtLane` cells of sim.tiles) is cut into SEGMENTS at junction cells. A limited vehicle
 // holds a time-interval RESERVATION on each segment it rides through; a segment takes `capacity` overlapping reservations.
 // A vehicle that finds a segment busy rides to the cell before it, waits there holding nothing, and re-plans when the blocker leaves.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import { travelTime, type Cell, type PathResult } from '../systems/pathfinding';
 import { cellKey } from './world';
 import { isLane } from './surfaces';
@@ -17,14 +17,14 @@ export interface LaneRule { capacity: number | null; appliesTo: VehicleKind[]; w
 export interface TrafficConfig { lane: LaneRule; dirtLane: LaneRule }
 export type TrafficOverride = { [K in keyof TrafficConfig]?: Partial<TrafficConfig[K]> };
 
-const DEFAULTS = balance.traffic as unknown as TrafficConfig;
+const TRAFFIC_DEFAULTS = DEFAULTS.traffic as unknown as TrafficConfig;
 let override: TrafficConfig | null = null;
 /** The single read site of the traffic config (balance.json unless a test or a later runtime setting overrides it). */
-export const trafficConfig = (): TrafficConfig => override ?? DEFAULTS;
+export const trafficConfig = (): TrafficConfig => override ?? TRAFFIC_DEFAULTS;
 /** Override parts of the config (merged over balance.json); null restores the defaults. Tests: call in afterEach(() => setTrafficConfig(null)). */
 export function setTrafficConfig(o: TrafficOverride | null): void {
   override = o && {
-    lane: { ...DEFAULTS.lane, ...o.lane }, dirtLane: { ...DEFAULTS.dirtLane, ...o.dirtLane },
+    lane: { ...TRAFFIC_DEFAULTS.lane, ...o.lane }, dirtLane: { ...TRAFFIC_DEFAULTS.dirtLane, ...o.dirtLane },
   };
 }
 /** An "everything off" config, for tests that compare against the unlimited behaviour. */

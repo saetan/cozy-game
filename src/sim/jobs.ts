@@ -1,5 +1,5 @@
 // Job board: buildings post jobs, residents claim exactly one, release on completion.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import { accessCell, findPath } from '../systems/pathfinding';
 import { surfaceLookup } from './surfaces';
 
@@ -32,7 +32,7 @@ const hasJob = (sim: SimState, kind: JobKind, targetId: number) =>
 
 /** Idempotently post whatever jobs a farm plot currently needs. */
 export function syncPlot(sim: SimState, plot: Building): void {
-  const crates = plot.crates ?? 0, room = crates < balance.maxCrates;
+  const crates = plot.crates ?? 0, room = crates < DEFAULTS.maxCrates;
   const want: JobKind | null =
     plot.plotState === 'empty' && room ? 'plant' :
     plot.plotState === 'thirsty' ? 'water' :

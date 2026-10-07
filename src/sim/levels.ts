@@ -1,6 +1,6 @@
 // Shared level-up for buildings that grow in place (houses, market): per-level cells live in ONE fixed
 // frame, so a building never shifts when it levels up and only its new cells must be free.
-import balance from '../data/balance.json';
+import { DEFAULTS } from './config';
 import { placementCells, type Footprint, type Frame } from '../systems/placement';
 import { isFree, isUnlocked } from './world';
 import { streetAt } from './surfaces';
@@ -10,13 +10,13 @@ import type { BuildingType, Cell, SimState } from './state';
 
 export interface LevelSpec { frame: Frame; max: number; cells(level: number): Footprint; cost(level: number): Cost }
 
-export const MARKET_FRAME: Frame = balance.market.frame as unknown as Frame;
-export const MARKET_MAX_LEVEL: number = balance.market.levels.length;
-export const marketCells = (level: number): Footprint => balance.market.levels[level - 1] as unknown as Footprint;
+export const MARKET_FRAME: Frame = DEFAULTS.market.frame as unknown as Frame;
+export const MARKET_MAX_LEVEL: number = DEFAULTS.market.levels.length;
+export const marketCells = (level: number): Footprint => DEFAULTS.market.levels[level - 1] as unknown as Footprint;
 
 const SPECS: Partial<Record<BuildingType, LevelSpec>> = {
-  house: { frame: HOUSE_FRAME, max: HOUSE_MAX_LEVEL, cells: houseCells, cost: l => balance.houseLevelCosts[l - 1] },
-  market: { frame: MARKET_FRAME, max: MARKET_MAX_LEVEL, cells: marketCells, cost: l => balance.marketLevelCosts[l - 1] },
+  house: { frame: HOUSE_FRAME, max: HOUSE_MAX_LEVEL, cells: houseCells, cost: l => DEFAULTS.houseLevelCosts[l - 1] },
+  market: { frame: MARKET_FRAME, max: MARKET_MAX_LEVEL, cells: marketCells, cost: l => DEFAULTS.marketLevelCosts[l - 1] },
 };
 export const levelSpec = (t: BuildingType): LevelSpec | undefined => SPECS[t];
 

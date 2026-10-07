@@ -1,7 +1,7 @@
 // "While you were away" panel. summaryLines is pure so it can be unit-tested.
 import { LEVELS } from '../kit/index.js';
 import { formatAway, MIN_SUMMARY_SECONDS, type AwaySummary } from '../systems/catchup';
-import balance from '../data/balance.json';
+import { DEFAULTS } from '../sim/config';
 import type { SimState } from '../sim/state';
 import { el } from './dom';
 
@@ -10,7 +10,7 @@ export const shouldShowAway = (s: AwaySummary) => s.simSeconds >= MIN_SUMMARY_SE
 export function summaryLines(s: AwaySummary, sim: SimState): { title: string; lines: string[] } {
   const title = `While you were away (${formatAway(s.realSeconds)})`;
   const lines: string[] = [];
-  if (s.capped) lines.push(`(capped at ${balance.offlineCapHours} h)`);
+  if (s.capped) lines.push(`(capped at ${DEFAULTS.offlineCapHours} h)`);
   lines.push(`Coins earned: ${s.coins}`, `Crops harvested: ${s.stats.harvested}`, `Crops sold: ${s.stats.sold}`,
     `${s.days} ${s.days === 1 ? 'day' : 'days'} passed`);
   for (const e of s.log) {

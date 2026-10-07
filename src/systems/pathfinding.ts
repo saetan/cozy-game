@@ -1,6 +1,6 @@
 // A* on a 4-neighbour grid. Pure TS. Cost per step = walking.speed.grass / speed[surface], i.e. in "grass-walking cells",
 // so walking costs are unchanged and a vehicle's speed table (per surface) just scales them.
-import balance from '../data/balance.json';
+import { DEFAULTS } from '../sim/config';
 import { MinHeap } from '../sim/heap';
 import { cellKey, isFree, isUnlocked, type World } from '../sim/world';
 import { rotatedCells, type Placement } from './placement';
@@ -12,8 +12,8 @@ export interface PathResult { cells: Cell[]; cost: number; cum: number[] }
 export type SpeedTable = Readonly<Record<string, number>>;
 export type TileLookup = { has(key: string): boolean; get?(key: string): string | undefined };
 
-export const WALKING: SpeedTable = balance.walking.speed;
-const REF_SPEED = balance.walking.speed.grass;
+export const WALKING: SpeedTable = DEFAULTS.walking.speed;
+const REF_SPEED = DEFAULTS.walking.speed.grass;
 const surfaceOf = (tiles: TileLookup, k: string): string => tiles.get?.(k) ?? (tiles.has(k) ? 'path' : 'grass');
 const DIRS: Cell[] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
