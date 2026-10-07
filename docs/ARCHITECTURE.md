@@ -76,7 +76,7 @@ player input ──► commands ──► SIM (rules, state) ──► render / 
   - inspection hooks (`plotView`, `residentView`, `roadKeys`, `housePieceKeys`, `countNamed`) report what is actually drawn;
   - screenshots and videos are evidence for the PR, not pass/fail gates; they go to `test-results/` unless `UPDATE_EVIDENCE=1` (`evidencePath` in `e2e/helpers.ts`);
   - specs that check timing pause the fake clock with `pauseClock` (`e2e/helpers.ts`), because it keeps flowing in real time otherwise.
-- **CI:** PRs run typecheck and unit tests. The full e2e suite runs on pushes to `main`, split across 4 runners, and on demand (Actions → CI → Run workflow). Run `npm run e2e` locally before opening a PR; for PRs that change rendering or e2e tests, also trigger the on-demand run.
+- **CI:** PRs run typecheck and unit tests, plus the e2e suite when they change `e2e/**`, `playwright.config.ts`, `src/ui/**`, `src/render/**`, `src/kit/**`, `design/kit/**`, `src/main.ts`, `src/game.ts`, `src/style.css`, `index.html`, `vite.config.*`, `package.json`, `package-lock.json` or `.github/workflows/**`. The full suite also runs on pushes to `main`, split across 4 runners, and on demand (Actions → CI → Run workflow).
 - Test hooks (`window.__game`, `window.__e2e`) exist only in dev and e2e builds. `grep` for them in `dist/` after a normal build must find nothing.
 
 ## Known weaknesses

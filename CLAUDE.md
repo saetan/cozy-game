@@ -35,5 +35,6 @@ Read before changing code:
 - Stop only processes you started yourself in this session, by the PID you recorded. Never kill by port or by name (`lsof -ti :N | xargs kill`, `pkill`): other worktrees and sessions share this machine.
 - Work on a feature branch. Never push to `main`; the user merges, or asks for a merge.
 - PRs use `.github/pull_request_template.md`. Tick only what you verified, with evidence.
-- CI on PRs runs typecheck and unit tests only. Run e2e locally; for rendering or e2e changes, also run the on-demand e2e workflow (`gh workflow run CI --ref <branch>`).
+- CI on PRs runs typecheck and unit tests, and e2e when the PR changes `e2e/**`, `playwright.config.ts`, `src/ui/**`, `src/render/**`, `src/kit/**`, `design/kit/**`, `src/main.ts`, `src/game.ts`, `src/style.css`, `index.html`, `vite.config.*`, `package.json`, `package-lock.json` or `.github/workflows/**`. Cite the CI run as e2e evidence; use `gh workflow run CI --ref <branch>` to run e2e on demand.
+- A PR that closes or partly closes an issue listed under Known weaknesses in `docs/ARCHITECTURE.md` updates that row.
 - Found a weakness you are not fixing now? Open an issue labelled `architecture` or `tech-debt` and link it in the tracking issue (#30).
