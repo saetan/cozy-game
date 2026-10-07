@@ -81,9 +81,15 @@ function runJob(sim: SimState, r: Resident): void {
 }
 function abort(sim: SimState, r: Resident, job: Job): void {
   const plot = sim.buildings.get(job.targetId);
-  if (r.carrying && plot) {
-    if (!plot.crates && r.carryingCrop) plot.crateCrop = r.carryingCrop;
-    plot.crates = (plot.crates ?? 0) + r.carrying;
+  if (r.carrying) {
+    // Crates go back to the plot only under their own label and within its crate limit. Otherwise the hauler
+    // keeps them and the job (stage: deliver), retrying the market after the back-off: never relabelled, never lost.
+    const label = r.carryingCrop ?? balance.defaultCrop;
+    const held = plot?.crates ?? 0;
+    const fits = plot && (!held || (plot.crateCrop ?? plot.crop) === label) && held + r.carrying <= balance.maxCrates;
+    if (!fits) { stand(sim, r, 'idle', sim.t + 60); return; }
+    if (!held) plot.crateCrop = label;
+    plot.crates = held + r.carrying;
   }
   r.carrying = 0; delete r.carryingCrop;
   completeJob(sim, r);
