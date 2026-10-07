@@ -3,7 +3,7 @@ import { advance, apply, createSim, snapshot } from '../src/sim/sim';
 import { createGame, loadGame, saveGame } from '../src/game';
 import { market } from '../src/sim/jobs';
 import { catchUp, OFFLINE_CAP_SECONDS } from '../src/systems/catchup';
-import { createMemoryStore, deserialize, migrate, SAVE_VERSION, SaveError, serialize } from '../src/systems/save';
+import { createMemoryStore, type SaveData, deserialize, migrate, SAVE_VERSION, SaveError, serialize } from '../src/systems/save';
 import { shouldShowAway, summaryLines } from '../src/ui/away';
 import type { Role } from '../src/sim/state';
 
@@ -132,6 +132,25 @@ describe('loadGame', () => {
       expect(r).toMatchObject({ ok: false, reason: 'damaged' });
       expect(await store.load()).toEqual(stored);
     }
+  });
+  it('a load that fails during catch-up leaves the returned data equal to the stored save', async () => {
+    // deserialize shares objects with its input and catchUp mutates them, so this only holds if loadGame works on a copy.
+    // (The memory store clones, so comparing store.load() alone could never see it.)
+    const g = createGame(); g.sim.coins = 500;
+    g.placeBuilding('house', 0, [-8, 0]); g.placeBuilding('farmPlot', 0, [0, 4]);
+    advance(g.sim, 100);
+    const broken = JSON.parse(JSON.stringify(serialize(g.sim, 1000, 1))) as SaveData;
+    delete (broken.sim.buildings.find(b => b.type === 'farmPlot') as { placement?: unknown }).placement;
+    const pristine = JSON.parse(JSON.stringify(broken));
+    const r = await loadGame(createMemoryStore(broken), 1000 + 6 * 3600 * 1000);
+    expect(r).toMatchObject({ ok: false, reason: 'damaged' });
+    if (r.ok) return;
+    expect(r.data).toEqual(pristine);
+  });
+  it('only a numeric version above SAVE_VERSION is "unsupported"; any other unknown version is damaged', () => {
+    const reasonOf = (version: unknown) => { try { migrate({ version, savedAt: 0, sim: {} } as never); } catch (e) { return (e as SaveError).reason; } };
+    expect(reasonOf(SAVE_VERSION + 1)).toBe('unsupported-version');
+    for (const v of [undefined, 0, 2.5, '5', null, -1]) expect(reasonOf(v)).toBe('damaged');
   });
   it('migrate and deserialize throw a SaveError a caller can branch on', () => {
     expect(() => migrate({ version: 999, savedAt: 0, sim: {} as never })).toThrow(SaveError);

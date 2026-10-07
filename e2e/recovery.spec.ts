@@ -47,6 +47,10 @@ test('an unsupported save shows the recovery screen; export keeps it; a new vill
   expect(JSON.parse(await readFile((await download.path())!, 'utf8'))).toEqual(FUTURE_SAVE);
   expect(await stored(page)).toEqual(FUTURE_SAVE); // exporting and viewing the screen leave the save alone
 
+  await page.reload(); // reload (pagehide) while the screen is up: still there, save unchanged
+  await expect(page.locator('#recovery-card')).toBeVisible();
+  expect(await stored(page)).toEqual(FUTURE_SAVE);
+
   // dismissing the confirm keeps the save
   page.once('dialog', d => { expect(d.message()).toContain('Export it first'); void d.dismiss(); });
   await page.getByRole('button', { name: 'Start a new village' }).click();

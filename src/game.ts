@@ -63,7 +63,7 @@ export async function loadGame(store: SaveStore, now: number): Promise<LoadResul
   try { data = await store.load(); } catch { data = null; }
   if (!data) return { ok: true, game: createGame(), away: null };
   try {
-    const sim = deserialize(data);
+    const sim = deserialize(structuredClone(data)); // deserialize shares objects with its input and catchUp mutates them: `data` must stay as stored
     const away = catchUp(sim, data.savedAt, now);
     const speed = SPEEDS.find(s => s === data!.speed) ?? 1;
     return { ok: true, game: createGame({ sim, speed }), away };

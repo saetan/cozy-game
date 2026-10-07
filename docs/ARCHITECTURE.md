@@ -91,4 +91,4 @@ Tracked in [#30](https://github.com/saetan/cozy-game/issues/30). When you find a
 | Vehicles have no position: no parking, bike stand hidden, no turn-around rule | [#26](https://github.com/saetan/cozy-game/issues/26) |
 | The lane mouth on dirt roads is a game-side placeholder | [#27](https://github.com/saetan/cozy-game/issues/27) |
 | E2E runs rewrite tracked evidence files; stale preview server; flaky parallel runs | [#28](https://github.com/saetan/cozy-game/issues/28) |
-| Unsupported save version stops the game; unbounded log; small performance items | [#29](https://github.com/saetan/cozy-game/issues/29) |
+| Unbounded log; small performance items; crate labels on abort | [#29](https://github.com/saetan/cozy-game/issues/29) |

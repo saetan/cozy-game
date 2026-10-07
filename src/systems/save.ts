@@ -77,7 +77,10 @@ const MIGRATIONS: Record<number, (d: SaveData) => SaveData> = { 1: v1ToV2, 2: v2
 
 export function migrate(data: SaveData): SaveData {
   let d = data;
-  if (!MIGRATIONS[d.version] && d.version !== SAVE_VERSION) throw new SaveError('unsupported-version', `Unsupported save version: ${String(data.version)}`);
+  if (!MIGRATIONS[d.version] && d.version !== SAVE_VERSION) {
+    const newer = typeof d.version === 'number' && d.version > SAVE_VERSION; // anything else (missing, 0, 2.5, a string) is not from a newer game
+    throw new SaveError(newer ? 'unsupported-version' : 'damaged', `Unsupported save version: ${String(data.version)}`);
+  }
   while (d.version < SAVE_VERSION) d = MIGRATIONS[d.version](d);
   return d;
 }
