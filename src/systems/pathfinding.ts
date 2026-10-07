@@ -62,6 +62,9 @@ export function findPath(w: World, tiles: TileLookup, from: Cell, to: Cell, spee
 /** Seconds for a path cost (cost is in grass-walking cells, whatever the vehicle). */
 export const travelTime = (cost: number): number => (cost * CELL) / REF_SPEED;
 
+/** Path cost (grass-walking cells) of a number of seconds. */
+export const costOfSeconds = (s: number): number => (s * REF_SPEED) / CELL;
+
 /** The free cell in front of a building (local +z rotated by its rotation), else any free neighbour. */
 export function accessCell(w: World, p: Placement): Cell | null {
   const cells = rotatedCells(p.footprint, p.rotation, p.frame).map(([x, z]) => [x + p.origin[0], z + p.origin[1]] as Cell);

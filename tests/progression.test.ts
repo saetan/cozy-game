@@ -170,7 +170,7 @@ function v1Save(): SaveData {
 }
 
 describe('save', () => {
-  it('is version 4 (older saves migrate up to it)', () => expect(SAVE_VERSION).toBe(4));
+  it('is version 5 (older saves migrate up to it)', () => expect(SAVE_VERSION).toBe(5));
   it('migrates a v1 save: carrot only, stock as carrot, Lv1 market, no land bought', () => {
     const sim = deserialize(v1Save());
     expect(sim.unlockedCrops).toEqual(['carrot']); expect(sim.chunksBought).toBe(0);

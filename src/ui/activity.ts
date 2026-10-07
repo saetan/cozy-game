@@ -9,6 +9,7 @@ const RIDE_VERB = { bicycle: 'Riding bicycle', wagon: 'Pushing wagon', car: 'Dri
 
 export function describeActivity(sim: SimState, r: Resident): string {
   const job = r.jobId !== null ? sim.jobs.get(r.jobId) : undefined;
+  if (r.task?.action === 'wait') return 'Waiting for the lane to clear';
   const ride = r.vehicle && r.task?.path ? RIDE_VERB[r.vehicle] : null;
   if (r.task?.kind === 'home') return ride ? `${ride} home` : 'Heading home';
   if (job && r.task?.kind === 'job') {

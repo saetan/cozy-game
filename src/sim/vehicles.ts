@@ -1,8 +1,9 @@
 // Vehicles: unlocked by house level, one of each per house (shared by its residents), claimed per walk leg.
 import balance from '../data/balance.json';
-import { findPath, WALKING, type Cell, type PathResult, type SpeedTable } from '../systems/pathfinding';
+import { costOfSeconds, findPath, WALKING, type Cell, type PathResult, type SpeedTable } from '../systems/pathfinding';
 import type { Resident, SimState, VehicleKind } from './state';
 import { surfaceLookup } from './surfaces';
+import { pathUntilStop, planEntry, type Entry } from './traffic';
 
 
 export const VEHICLES = Object.keys(balance.vehicles) as VehicleKind[]; // tie-break order
@@ -20,18 +21,27 @@ export function freeVehicles(sim: SimState, r: Resident): VehicleKind[] {
   return h ? VEHICLES.filter(k => isUnlocked(h.level, k) && !inUse(sim, h.id, k)) : [];
 }
 
-export interface Leg extends PathResult { vehicle: VehicleKind | null }
+export interface Leg extends PathResult { vehicle: VehicleKind | null; entry?: Entry }
 /** Fastest way for a resident to cover a leg: walking, or any free vehicle (ties: walk, then bicycle, wagon, car).
- *  `prefer` takes that vehicle whenever it is free, however slow. Null when unreachable. */
+ *  `prefer` takes that vehicle whenever it is free, however slow. Lane traffic (sim/traffic.ts) may make a vehicle wait at
+ *  a lane entrance: the leg is then cut short at that cell (`entry.kind === 'wait'`) and the wait counts against the vehicle.
+ *  Null when unreachable. */
 export function planLeg(sim: SimState, r: Resident, from: Cell, to: Cell, prefer?: VehicleKind): Leg | null {
   const walk = findPath(sim.world, surfaceLookup(sim), from, to, WALKING);
   if (!walk) return null;
-  const free = freeVehicles(sim, r);
-  const pref = prefer && free.includes(prefer) ? prefer : null;
-  let best: Leg = { ...walk, vehicle: null };
-  for (const k of pref ? [pref] : free) {
+  const options: { leg: Leg; cost: number }[] = [];
+  for (const k of freeVehicles(sim, r)) {
     const p = findPath(sim.world, surfaceLookup(sim), from, to, vehicleInfo(k).speed)!;
-    if (pref || p.cost < best.cost) best = { ...p, vehicle: k };
+    const entry = planEntry(sim, k, p, sim.t);
+    let cost = p.cost;
+    if (entry.kind === 'wait') {
+      if (entry.whenBusy === 'waitOrWalk') { if (entry.waitSeconds > entry.maxWaitSeconds) continue; cost += costOfSeconds(entry.waitSeconds); }
+      options.push({ leg: { ...pathUntilStop(p, entry.stop), vehicle: k, entry }, cost });
+    } else options.push({ leg: { ...p, vehicle: k, entry }, cost });
   }
+  const pref = prefer && options.find(o => o.leg.vehicle === prefer);
+  if (pref) return pref.leg;
+  let best: Leg = { ...walk, vehicle: null }, bestCost = walk.cost;
+  for (const o of options) if (o.cost < bestCost) { best = o.leg; bestCost = o.cost; }
   return best;
 }

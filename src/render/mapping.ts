@@ -19,7 +19,7 @@ export type KitAction = 'walk' | 'work' | 'water' | 'carry' | 'sell' | 'stand' |
 export function kitAction(t: Task | null, jobKind?: JobKind | null, simT?: number): KitAction {
   if (!t) return 'stand';
   if (t.action === 'work' && jobKind === 'plant' && simT !== undefined) return simT < (t.start + t.end) / 2 ? 'sow' : 'hoe';
-  return t.action;
+  return t.action === 'wait' ? 'stand' : t.action; // waiting is standing (on the vehicle, if any)
 }
 
 /** Rotation about +Y so a model facing +z looks along (dx, dz). Null when there is no direction. */

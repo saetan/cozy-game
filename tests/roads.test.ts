@@ -178,12 +178,12 @@ describe('save v4', () => {
     const sim = rich(); street(sim, [[0, 0], [-1, 2]]); street(sim, [[3, 3]], 'dirt');
     const back = deserialize(JSON.parse(JSON.stringify(serialize(sim, 1))));
     expect([...back.streets]).toEqual([...sim.streets]);
-    expect(SAVE_VERSION).toBe(4);
+    expect(SAVE_VERSION).toBe(5);
   });
   it('v3 -> v4: road cells become dirt lanes, paths stay, no streets', () => {
     const sim = deserialize(asV3());
     expect([...sim.tiles]).toEqual([['0,3', 'path'], ['1,3', 'dirtLane']]);
-    expect(sim.streets.size).toBe(0); expect(serialize(sim).version).toBe(4);
+    expect(sim.streets.size).toBe(0); expect(serialize(sim).version).toBe(SAVE_VERSION);
   });
   it('v2 -> v4 and v1 -> v4 chain the older migrations', () => {
     const d2 = asV3() as any; d2.version = 2; for (const r of d2.sim.residents) delete r.vehicle;
