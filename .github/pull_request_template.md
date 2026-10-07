@@ -27,10 +27,14 @@ Closes #
 
 - [ ] **Focused tests pass**: tests for the new or changed behaviour
 - [ ] **Existing control behaviour is covered**: existing tests still pass, and behaviour that must not change is protected by a test. Name that test and the one-line code change that makes it fail; you must have run it.
-- [ ] **Not verified**: what was not run or could not be checked, including other ways to start the tool ("Nothing" only if true)
-- [ ] **How to see it**: the steps or scenario that show the change working in the running game ("N/A: <reason>" if nothing to see)
 - [ ] **UI proof is attached when relevant**: screenshot or recording for any visible change
 - [ ] **A fresh reviewer or agent reviewed the diff**: someone other than the author (name the reviewer)
+
+<!-- Always fill in the next two lines. They are statements, not boxes to tick. -->
+
+**Not verified:** <!-- what was not run or could not be checked, including other ways to start the tool. "Nothing" only if true. -->
+
+**How to see it:** <!-- the steps or scenario that show the change working in the running game. "N/A: <reason>" if there is nothing to see. -->
 
 ## Architecture check
 
