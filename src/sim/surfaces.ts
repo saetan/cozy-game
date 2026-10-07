@@ -34,6 +34,7 @@ const parseCell = (k: string): Cell => { const c = k.indexOf(','); return [Numbe
 /** A TileLookup for findPath: the key is a cell key, the answer a Surface. */
 export function surfaceLookup(sim: Pick<SimState, 'streets' | 'tiles'>) {
   return {
+    surface: (x: number, z: number): string => surfaceAt(sim, x, z),
     has: (k: string) => surfaceAt(sim, ...parseCell(k)) !== 'grass',
     get: (k: string): string => surfaceAt(sim, ...parseCell(k)),
   };

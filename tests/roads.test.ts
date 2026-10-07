@@ -155,6 +155,18 @@ describe('surfaces and speeds', () => {
     expect(cost(a, [9, 1], car)).toBeLessThan(cost(b, [9, 1], car));
     expect(cost(a, [9, 1], car)).toBeLessThan(cost(c, [9, 1], car));
   });
+  it('pins the route and cost across street, dirt road, lane, dirt lane, path and grass (the lookup is by coordinates)', () => {
+    const sim = rich(); street(sim, [[0, 0]]); street(sim, [[1, 0]], 'dirt');
+    tile(sim, [[6, 1], [7, 1]], 'lane'); tile(sim, [[8, 1], [9, 1]], 'dirtLane'); tile(sim, [[10, 1], [11, 1]], 'path');
+    const car = findPath(sim.world, surfaceLookup(sim), [-1, 1], [12, 1], balance.vehicles.car.speed)!;
+    const walk = findPath(sim.world, surfaceLookup(sim), [-1, 1], [12, 1], WALKING)!;
+    // expected values were measured on the string-key lookup before it was replaced
+    const row = Array.from({ length: 14 }, (_, i) => [i - 1, 1]);
+    expect(car.cells).toEqual(row); expect(walk.cells).toEqual(row);
+    expect(car.cost).toBe(7.192857142857142); expect(walk.cost).toBe(9.933333333333332);
+    expect(car.cum).toEqual([0, 0.03475670307845085, 0.0695134061569017, 0.10427010923535254, 0.17378351539225423, 0.24329692154915594, 0.3128103277060576,
+      0.368421052631579, 0.4240317775571003, 0.5034756703078451, 0.5829195630585898, 0.7219463753723933, 0.8609731876861966, 1]);
+  });
   it('path is foot only: vehicles move at grass speed on it, walkers are faster', () => {
     for (const v of Object.values(balance.vehicles)) expect(v.speed.path).toBe(v.speed.grass);
     const sim = rich(); tile(sim, Array.from({ length: 9 }, (_, i) => [i, 1] as Cell), 'path');
