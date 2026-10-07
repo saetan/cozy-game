@@ -7,7 +7,9 @@ const port = Number(process.env.E2E_PORT ?? 4173);
 // Fail with our own message (Playwright's suggests reusing the server). Main process only: workers load this
 // config too, by which time the server is up.
 if (!process.env.TEST_WORKER_INDEX) {
-  const probe = `require('net').createServer().once('error',()=>process.exit(1)).listen(${port},()=>process.exit(0))`;
+  // Connect, don't bind: a wildcard bind succeeds on macOS while `vite preview` holds [::1] on the same port.
+  // Connecting to localhost tests what Playwright will actually use.
+  const probe = `require('net').connect({host:'localhost',port:${port}}).once('connect',()=>process.exit(1)).once('error',()=>process.exit(0))`;
   try { execFileSync(process.execPath, ['-e', probe]); }
   catch {
     throw new Error(`e2e: port ${port} is already in use, so this run cannot start its own build there. ` +
