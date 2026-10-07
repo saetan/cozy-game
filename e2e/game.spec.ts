@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildings, cellToScreen, houseCentre, openGame } from './helpers';
+import { buildings, cellToScreen, houseCentre, openGame, pauseClock } from './helpers';
 
 const FREE: [number, number] = [3, 3]; // on screen, unlocked, empty ground away from the starter market at (0,0)
 
@@ -72,6 +72,7 @@ test('speed buttons change speed', async ({ page }) => {
 
 test('page.clock drives the frame loop: sim time follows fake real time and speed', async ({ page }) => {
   await openGame(page);
+  await pauseClock(page); // otherwise the clock also flows in real time and the deltas below drift under load
   const t = () => page.evaluate(() => (window as any).__game.sim.t as number);
   const t0 = await t();
   await page.clock.runFor(2000);

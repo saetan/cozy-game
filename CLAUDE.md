@@ -11,7 +11,7 @@ Read before changing code:
 
 - `npm run dev`: dev server (has a dev-only "+1000 coins" button).
 - `npm run typecheck`, `npm test`, `npm run build`.
-- `npm run e2e`, or `npx playwright test --workers=1` for a stable serial run. Kill any stale `vite preview` on port 4173 first.
+- `npm run e2e` (rebuilds, 2 local workers). It never reuses a server: if port 4173 is taken it fails with "already used"; kill the stale `vite preview`, or run side by side with `E2E_PORT=4174 npm run e2e`.
 
 ## Rules that must hold
 
@@ -28,7 +28,7 @@ Read before changing code:
 
 - Unit-test rules in `tests/`.
 - E2E proof is scene inspection at exact sim moments (`__e2e.runUntil`, `plotView`, `residentView`, `roadKeys`), not pixel comparison. Screenshots and videos are evidence only. Use `pauseClock` when timing matters.
-- E2E runs rewrite tracked files in `docs/screenshots/`; revert the ones you did not mean to change.
+- Evidence (screenshots, the farming video) goes to `test-results/` and leaves the tree clean. `UPDATE_EVIDENCE=1 npm run e2e` rewrites `docs/screenshots/`; specs get paths from `evidencePath` in `e2e/helpers.ts`, never name that folder.
 
 ## Workflow
 
